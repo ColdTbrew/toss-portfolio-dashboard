@@ -14,7 +14,8 @@
     "lint": "biome lint",
     "check": "biome check",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:mock": "TOSS_MOCK=1 vite dev --host 127.0.0.1 --port 3100"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

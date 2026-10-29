@@ -1,0 +1,24 @@
+title = "toss-portfolio-dashboard secret scanning"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "toss-client-secret"
+description = "Toss credential prefixes"
+regex = '''\b(?:tsck_live_|tssk_)[A-Za-z0-9_-]{12,}\b'''
+keywords = ["tsck_live_", "tssk_"]
+
+[[rules]]
+id = "portfolio-jwt"
+description = "JWT tokens"
+regex = '''\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b'''
+keywords = ["eyJ"]
+
+# Only the intentionally invalid JWT in the pre-existing redaction fixture.
+[[rules.allowlists]]
+description = "Exact fake JWT used to test redaction"
+condition = "AND"
+paths = ['''^tests/redact\.test\.ts$''']
+regexTarget = "match"
+regexes = ['''^eyJfake\.eyJfake\.fakeSignature$''']

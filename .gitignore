@@ -11,3 +11,16 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+
+# Credentials and private investment data
+.env*
+!.env.example
+!*.env.example
+*.jsonl
+*.db
+*.sqlite*
+.token*
+account.json
+*.pem
+last_raw.json
+portfolio*.json*

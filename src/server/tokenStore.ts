@@ -45,7 +45,8 @@ export function createTokenStore(options: {
 				cache &&
 				typeof cache.access_token === "string" &&
 				cache.access_token &&
-				cache.token_type === "Bearer" &&
+				typeof cache.token_type === "string" &&
+				cache.token_type.toLowerCase() === "bearer" &&
 				Number.isFinite(cache.issued_at) &&
 				Number.isFinite(cache.expires_at)
 			)
@@ -114,14 +115,19 @@ export function createTokenStore(options: {
 			]);
 			throw new Error(redact(`POST ${ALLOWED_ENDPOINTS.token}: ${summary}`));
 		}
+		const expiresIn =
+			typeof body?.expires_in === "number" ||
+			typeof body?.expires_in === "string"
+				? Number(body.expires_in)
+				: NaN;
 		if (
 			!body ||
 			typeof body.access_token !== "string" ||
 			!body.access_token ||
-			body.token_type !== "Bearer" ||
-			typeof body.expires_in !== "number" ||
-			!Number.isFinite(body.expires_in) ||
-			body.expires_in <= 120
+			typeof body.token_type !== "string" ||
+			body.token_type.toLowerCase() !== "bearer" ||
+			!Number.isFinite(expiresIn) ||
+			expiresIn <= 120
 		) {
 			throw new Error("Invalid token response");
 		}
@@ -131,7 +137,7 @@ export function createTokenStore(options: {
 			access_token: body.access_token,
 			token_type: "Bearer",
 			issued_at: issued,
-			expires_at: issued + body.expires_in,
+			expires_at: issued + expiresIn,
 		};
 		await writeJsonAtomic(config.tokenPath, cache);
 		return cache.access_token;

@@ -205,3 +205,78 @@ describe("token cache and file locking", () => {
 		expect(await readdir(directory)).toEqual([]);
 	});
 });
+
+describe("Toss token compatibility", () => {
+	it.each([
+		"Bearer",
+		"bearer",
+		"bEaReR",
+	])("reuses a %s cache without issuance", async (tokenType) => {
+		const { config, store, request } = setup();
+		await writeJsonAtomic(config.tokenPath, {
+			access_token: "FAKE_CACHED_TOKEN",
+			token_type: tokenType,
+			issued_at: NOW / 1000 - 1000,
+			expires_at: NOW / 1000 + 3600,
+		});
+		expect(await store.getToken()).toBe("FAKE_CACHED_TOKEN");
+		expect(request).not.toHaveBeenCalled();
+	});
+	it.each([
+		["bearer", "3600"],
+		["Bearer", "3600.5"],
+		["BEARER", 3600],
+	])("accepts %s and numeric expiration %s", async (tokenType, expiration) => {
+		const { config, store, request } = setup();
+		request.mockResolvedValueOnce(
+			Response.json({
+				access_token: "FAKE_COMPATIBLE_TOKEN",
+				token_type: tokenType,
+				expires_in: expiration,
+			}),
+		);
+		expect(await store.getToken()).toBe("FAKE_COMPATIBLE_TOKEN");
+		expect(JSON.parse(await readFile(config.tokenPath, "utf8"))).toEqual({
+			access_token: "FAKE_COMPATIBLE_TOKEN",
+			token_type: "Bearer",
+			issued_at: NOW / 1000,
+			expires_at: NOW / 1000 + Number(expiration),
+		});
+	});
+	it.each([
+		null,
+		true,
+		[],
+		{},
+		"",
+		"bad",
+		"Infinity",
+		"120",
+		"-5",
+	])("rejects invalid expiration %j", async (expiration) => {
+		const { store, request } = setup();
+		request.mockResolvedValueOnce(
+			Response.json({
+				access_token: "FAKE_INVALID_TOKEN",
+				token_type: "bearer",
+				expires_in: expiration,
+			}),
+		);
+		await expect(store.getToken()).rejects.toThrow("Invalid token response");
+	});
+	it.each([
+		"Basic",
+		null,
+		42,
+	])("rejects invalid token types %j", async (tokenType) => {
+		const { store, request } = setup();
+		request.mockResolvedValueOnce(
+			Response.json({
+				access_token: "FAKE_INVALID_TOKEN",
+				token_type: tokenType,
+				expires_in: "3600",
+			}),
+		);
+		await expect(store.getToken()).rejects.toThrow("Invalid token response");
+	});
+});

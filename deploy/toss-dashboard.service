@@ -1,0 +1,25 @@
+[Unit]
+Description=Toss read-only portfolio dashboard
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=%h/apps/toss-portfolio-dashboard
+ExecStart=%h/.local/opt/node24/bin/node %h/apps/toss-portfolio-dashboard/.output/server/index.mjs
+EnvironmentFile=%h/.config/toss-dashboard.env
+Environment=NODE_ENV=production HOST=<tailscale-ip> PORT=8790
+Environment=NODE_OPTIONS=--max-old-space-size=384
+MemoryMax=768M
+MemoryHigh=640M
+CPUQuota=100%
+Nice=10
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+UMask=0077
+
+[Install]
+WantedBy=default.target
