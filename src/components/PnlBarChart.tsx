@@ -1,9 +1,11 @@
+import { useState } from "react";
 import {
 	Bar,
 	BarChart,
 	CartesianGrid,
 	Cell,
 	ResponsiveContainer,
+	Text,
 	Tooltip,
 	XAxis,
 	YAxis,
@@ -15,6 +17,7 @@ import { useMask } from "./MaskProvider";
 
 export function PnlBarChart({ state }: { state: PortfolioState }) {
 	const { masked } = useMask();
+	const [axisWidth, setAxisWidth] = useState(144);
 	// Only the selected metric enters Recharts payloads, including accessibility and tooltips.
 	const data = state.holdings
 		.map((row) => ({
@@ -43,6 +46,11 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 					<ResponsiveContainer
 						width="100%"
 						height={Math.max(260, data.length * 30)}
+						onResize={(width) =>
+							setAxisWidth(
+								Math.min(180, Math.max(112, Math.round(width * 0.36))),
+							)
+						}
 					>
 						<BarChart
 							key={masked ? "rate" : "amount"}
@@ -66,9 +74,27 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 							<YAxis
 								type="category"
 								dataKey="name"
-								width={114}
-								tick={{ fontSize: 11, fill: "var(--muted)" }}
-								tickFormatter={(name) => String(name).slice(0, 12)}
+								width={axisWidth}
+								interval={0}
+								tickMargin={8}
+								tick={({ x, y, payload }) => (
+									<g>
+										<title>{String(payload.value)}</title>
+										<Text
+											x={x}
+											y={y}
+											width={axisWidth - 16}
+											maxLines={1}
+											breakAll
+											textAnchor="end"
+											verticalAnchor="middle"
+											style={{ fontSize: 11 }}
+											fill="var(--muted)"
+										>
+											{String(payload.value)}
+										</Text>
+									</g>
+								)}
 								axisLine={false}
 								tickLine={false}
 							/>

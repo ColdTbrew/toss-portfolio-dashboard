@@ -112,6 +112,39 @@ function representations(value: number) {
 }
 
 describe("privacy rendering", () => {
+	it.each([
+		true,
+		false,
+	])("handles sparse history safely (masked=%s)", (masked) => {
+		for (const count of [0, 1, 2]) {
+			const points = privacyTrend.slice(0, count);
+			const html = renderToStaticMarkup(
+				<MaskProvider initialMasked={masked}>
+					<TrendChart points={points} />
+				</MaskProvider>,
+			);
+			const note = "기록이 2일 이상 쌓이면 추이가 표시됩니다";
+			if (count < 2) {
+				expect(html).toContain(note);
+				expect(html).not.toContain("data-chart=");
+			} else {
+				expect(html).not.toContain(note);
+				expect(html).toContain("data-chart=");
+			}
+			const latest = points.at(-1);
+			if (latest) {
+				expect(html).toContain(formatPercent(latest.returnRate, true));
+			} else {
+				expect(html).toContain("아직 일별 기록이 없습니다.");
+			}
+			if (masked) {
+				expect(html).toMatch(/disabled=""[^>]*>총자산/);
+				for (const value of privateValues())
+					for (const text of representations(value))
+						expect(html, text).not.toContain(text);
+			}
+		}
+	});
 	it("SSR is masked by default; no private amounts, quantities or average prices occur anywhere in the markup", () => {
 		const html = dashboard();
 		expect(html).toContain("data-chart=");

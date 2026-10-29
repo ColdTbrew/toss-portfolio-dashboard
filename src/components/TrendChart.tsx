@@ -61,7 +61,7 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
 					</button>
 				</fieldset>
 			</div>
-			{data.length ? (
+			{data.length >= 2 ? (
 				<ResponsiveContainer width="100%" height={240}>
 					<LineChart
 						key={mode}
@@ -105,7 +105,7 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
 							name={mode === "rate" ? "수익률" : "총자산"}
 							stroke="var(--accent)"
 							strokeWidth={2.5}
-							dot={data.length === 1}
+							dot={false}
 							activeDot={{ r: 5, strokeWidth: 3, stroke: "var(--surface)" }}
 							isAnimationActive={false}
 						/>
@@ -113,7 +113,8 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
 				</ResponsiveContainer>
 			) : (
 				<p className="empty-state">
-					아직 일별 기록이 없습니다. 첫 스냅샷이 쌓이면 추이가 표시됩니다.
+					{!latest && "아직 일별 기록이 없습니다. "}
+					기록이 2일 이상 쌓이면 추이가 표시됩니다
 				</p>
 			)}
 			<p className="chart-note">
