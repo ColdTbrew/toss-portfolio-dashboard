@@ -12,7 +12,10 @@ const config = defineConfig(({ command }) => ({
 	plugins: [
 		command === "serve" && devtools(),
 		nitro({
-			plugins: ["./src/server/plugins/shutdown.ts"],
+			plugins: [
+				"./src/server/plugins/bindHost.ts",
+				"./src/server/plugins/shutdown.ts",
+			],
 			rollupConfig: { external: [/^@sentry\//] },
 		}),
 		tailwindcss(),

@@ -9,7 +9,7 @@ Type=simple
 WorkingDirectory=%h/apps/toss-portfolio-dashboard
 ExecStart=%h/.local/opt/node24/bin/node %h/apps/toss-portfolio-dashboard/.output/server/index.mjs
 EnvironmentFile=%h/.config/toss-dashboard.env
-Environment=NODE_ENV=production HOST=<tailscale-ip> PORT=8790
+Environment=NODE_ENV=production PORT=8790
 Environment=NODE_OPTIONS=--max-old-space-size=384
 MemoryMax=768M
 MemoryHigh=640M

@@ -42,9 +42,10 @@ npm run dev:mock
 | `SNAPSHOT_TIME_KST` | `16:10` | 해당 시각 이후 첫 성공 갱신 때 하루 1회 기록 |
 | `REFRESH_HOLDINGS_SEC` | `30` | 보유종목 갱신 주기 |
 | `REFRESH_CASH_FX_SEC` | `60` | 현금·환율 갱신 주기 |
-| `HOST` / `PORT` | 배포 유닛에서 지정 | `<tailscale-ip>` / `8790` |
+| `HOST` | 기본값 없음 (프로덕션 필수) | 레포 밖의 `~/.config/toss-dashboard.env`에 Tailscale IP 지정 |
+| `PORT` | 배포 유닛에서 `8790` 지정 | HTTP 수신 포트 |
 
-서버 환경의 `TOSS_CLIENT_ID`, `TOSS_CLIENT_SECRET`도 지원하지만, 배포 예제에는 경로만 둡니다. 값을 클라이언트용 환경 변수로 넣거나 레포·로그·스크린샷에 남기지 마세요.
+서버 환경의 `TOSS_CLIENT_ID`, `TOSS_CLIENT_SECRET`도 지원하지만, 배포 예제에는 HOST 자리표시자와 경로만 둡니다. 실제 주소·인증 값을 클라이언트용 환경 변수로 넣거나 레포·로그·스크린샷에 남기지 마세요.
 
 ## GX10 배포
 
@@ -58,7 +59,9 @@ cd ~/apps/toss-portfolio-dashboard
 
 빌드 스크립트는 Node 24로 `npm ci`와 mock 빌드를 실행합니다. mock 설정은 빌드 프로세스에만 적용되며 실제 서비스는 환경 파일의 런타임 설정을 사용합니다.
 
-설치 스크립트는 유닛을 복사하고, `~/.config/toss-dashboard.env`가 없을 때만 경로 예제를 mode 600으로 복사한 뒤 `daemon-reload`합니다. 기본 실행은 서비스를 시작하거나 활성화하지 않습니다. 경로와 Tailscale 연결을 확인한 뒤 직접 시작합니다.
+설치 스크립트는 유닛을 복사하고, `~/.config/toss-dashboard.env`가 없을 때만 설정 예제를 mode 600으로 복사한 뒤 `daemon-reload`합니다. 기본 실행은 서비스를 시작하거나 활성화하지 않습니다. 이 환경 파일의 `HOST=<tailscale-ip>`에서 `<tailscale-ip>`를 `tailscale ip -4`로 확인한 실제 주소로 바꾸고 경로와 Tailscale 연결을 확인한 뒤 직접 시작합니다. 배포 HOST는 이 레포 밖의 환경 파일에만 설정하며 유닛에는 넣지 않습니다.
+
+`NODE_ENV=production`에서는 HOST가 미설정·빈 값이거나 `0.0.0.0`, `::`, `[::]`, `<...>` 자리표시자이면 HTTP 수신 전에 시작을 거부합니다. 이 검사는 프로덕션의 `TOSS_MOCK=1` 실행에도 적용됩니다. 개발·테스트 모드에는 적용하지 않습니다.
 
 ```bash
 systemctl --user enable --now toss-dashboard
@@ -66,7 +69,7 @@ systemctl --user status toss-dashboard
 journalctl --user -u toss-dashboard -n 50
 ```
 
-명시적으로 시작까지 원하면 `./scripts/install-service.sh --start`를 사용할 수 있습니다. 접속은 `http://<tailscale-ip>:8790` 또는 `http://<tailscale-host>:8790`입니다. 유닛은 Tailscale IP만 바인드하며 메모리 상한 768M, MemoryHigh 640M, Node 힙 384M, CPU 100%를 적용합니다. 재부팅 후 실행하려면 사용자 linger가 필요하며 GX10의 coldbrew 계정은 이미 설정되어 있습니다.
+명시적으로 시작까지 원하면 `./scripts/install-service.sh --start`를 사용할 수 있습니다. 접속 주소 형식은 `http://<tailscale-ip>:8790` 또는 `http://<tailscale-host>:8790`이며, 꺾쇠 부분을 배포 장비의 Tailscale IP 또는 호스트명으로 바꿉니다. 유닛은 환경 파일의 HOST로 바인드하며 메모리 상한 768M, MemoryHigh 640M, Node 힙 384M, CPU 100%를 적용합니다. 재부팅 후 실행하려면 서비스 계정의 사용자 linger 설정을 확인하세요.
 
 ## 검증과 보안
 
@@ -83,7 +86,7 @@ rg -l '[/~]invest/|TOSS_(ENV|TOKEN|ACCOUNT)_PATH|PORTFOLIO_LEDGER_PATH|openapi(-
 
 마지막 검색은 결과가 없어야 합니다. 실시간 통합 테스트는 가짜 WebSocket 서버를 loopback에 바인드하므로 포트 바인드를 막는 샌드박스에서는 해당 테스트가 실패합니다. 나머지 검사와 실제 CI 환경의 전체 테스트는 통과해야 합니다.
 
-gitleaks v8.30.1을 PATH에 준비하면 수동 스크립트로 전체 git 히스토리를 검사합니다. pre-commit 사용 환경에서는 `pre-commit install`로 커밋 전 검사도 활성화합니다. CI는 고정 버전 gitleaks 아카이브의 SHA-256을 검증한 뒤 전체 히스토리를 검사하고, Node 24·mock 모드로 설치·타입 검사·테스트·Biome·빌드를 실행합니다.
+`scripts/check-private-hosts.sh`는 추적 파일의 Tailscale CGNAT IP와 MagicDNS 호스트명을 검사하고 발견 위치를 출력합니다. 수동 보안 스크립트와 CI의 checkout 직후 단계에서 실행합니다. gitleaks v8.30.1을 PATH에 준비하면 수동 스크립트로 전체 git 히스토리의 시크릿도 검사합니다. pre-commit 사용 환경에서는 `pre-commit install`로 커밋 전 검사도 활성화합니다. CI는 고정 버전 gitleaks 아카이브의 SHA-256을 검증한 뒤 전체 히스토리를 검사하고, Node 24·mock 모드로 설치·타입 검사·테스트·Biome·빌드를 실행합니다.
 
 토큰은 유효하면 재사용하며, 만료 시에만 파일 락 안에서 갱신합니다. 기존 toss.py는 이 락을 사용하지 않으므로 만료 직전 동시 실행에는 작은 경쟁 구간이 남습니다. 이 레포는 투자봇을 수정하지 않습니다. 로그는 `redact()`를 거치며 헤더를 기록하지 않습니다. 계좌 캐시·장부·인증 파일은 gitignore 대상입니다.
 

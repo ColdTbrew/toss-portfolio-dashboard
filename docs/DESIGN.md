@@ -15,7 +15,7 @@
 3. **로그에 시크릿이 없다.** 헤더는 절대 로그하지 않는다. 에러는 `status + code + message(200자)` 로만 요약하고 `redact()` 를 통과시킨다.
 4. **토큰은 클라이언트당 1개.** 새로 발급하면 기존 토큰이 즉시 죽는다 → `~/invest/.token.json` 을 `toss.py` 와 공유하고, 유효하면 재사용, 만료 시에만 락 안에서 발급.
 5. **WS 는 서버당 정확히 1개.** 계정당 동시 2개 제한이고, 초과 시 *가장 오래된 연결이 끊긴다*(다른 봇의 연결을 죽일 수 있음). 두 번째 연결을 절대 만들지 않는다.
-6. 바인드는 Tailscale IP(<tailscale-ip>) 또는 127.0.0.1. `0.0.0.0` 금지.
+6. 배포 바인드 주소는 레포 밖의 `~/.config/toss-dashboard.env`의 HOST로만 지정한다. 실제 Tailscale IP·호스트명은 레포에 남기지 않는다. 로컬 검증에는 `127.0.0.1`을 사용한다. 프로덕션은 HOST 미설정·빈 값, `0.0.0.0`, `::`, `[::]`, `<...>` 자리표시자이면 시작을 거부한다.
 
 ## 1. 스택
 
@@ -37,7 +37,8 @@
 | `SNAPSHOT_TIME_KST` | `16:10` | 해당 시각 이후 첫 갱신 때 그날 스냅샷 1회 |
 | `REFRESH_HOLDINGS_SEC` | `30` | holdings 폴링 |
 | `REFRESH_CASH_FX_SEC` | `60` | buying-power ×2, exchange-rate 폴링 |
-| `HOST` / `PORT` | Nitro 기본 | systemd 에서 `HOST=<tailscale-ip> PORT=8790` |
+| `HOST` | 기본값 없음 (프로덕션 필수) | 레포 밖의 `~/.config/toss-dashboard.env`에 Tailscale IP 지정 |
+| `PORT` | systemd 에서 `8790` | HTTP 수신 포트 |
 
 `~` 확장은 앱이 직접 처리. 경로 파일이 없으면 명확한 에러(값 노출 없이).
 
@@ -47,6 +48,7 @@
 src/
   server/                     # 서버 전용 (클라이언트 번들 금지, 파일명 *.server.ts 또는 server/ 하위에서만 import)
     config.ts                 # env 파싱 → Config (경로, 주기, mock 여부)
+    bindHost.ts               # 프로덕션 HOST 순수 검증 함수
     redact.ts                 # redact(str), summarizeHttpError(status, body)
     fileLock.ts               # withFileLock(lockPath, fn, {timeoutMs, staleMs}) — O_EXCL lockfile
     atomicWrite.ts            # writeJsonAtomic(path, obj) — tmp + fsync + rename, mode 600
@@ -75,11 +77,12 @@ src/
     TrendChart.tsx    ThemeToggle.tsx    LiveBadge.tsx
 deploy/
   toss-dashboard.service      # systemd --user 유닛 템플릿
-  toss-dashboard.env.example  # 경로만 (값 없음)
+  toss-dashboard.env.example  # HOST 자리표시자와 경로 (실제 주소·인증 값 없음)
 scripts/
   build-on-gx10.sh            # GX10 에서 npm ci && npm run build
   install-service.sh          # 유닛 복사 + daemon-reload 만. enable/start 는 하지 않음 (--start 플래그 시에만)
-  secret-scan.sh              # gitleaks 실행 (pre-commit / 수동)
+  check-private-hosts.sh      # 추적 파일의 Tailscale 주소 검사
+  secret-scan.sh              # 비공개 주소 검사 + 전체 이력 gitleaks 실행 (수동)
 .gitleaks.toml  .pre-commit-config.yaml  .github/workflows/ci.yml
 ```
 
@@ -210,7 +213,7 @@ SSE (`/api/stream`): `Content-Type: text/event-stream`, `Cache-Control: no-cache
 
 - `.gitignore`: 기존 + `.env*`(단 `.env.example` 허용), `*.jsonl`, `*.db`, `*.sqlite*`, `.token*`, `account.json`, `*.pem`, `last_raw.json`, `portfolio*.json*`.
 - `.gitleaks.toml`: 기본 규칙 + 토스 client secret 패턴(`tsck_live_…`, `tssk_…` 등 접두어)과 JWT.
-- CI (`.github/workflows/ci.yml`, ubuntu): `gitleaks/gitleaks-action` 대신 gitleaks 바이너리(checksum 검증)로 전체 히스토리 스캔 → `npm ci` → `npm run typecheck` → `npm test` → `npm run build`. 모두 `TOSS_MOCK=1`, 네트워크 시크릿 없음.
+- CI (`.github/workflows/ci.yml`, ubuntu): checkout 직후 `scripts/check-private-hosts.sh`로 추적 파일의 Tailscale CGNAT IP·MagicDNS 호스트명을 검사 → gitleaks 바이너리(checksum 검증)로 전체 히스토리 스캔 → `npm ci` → `npm run typecheck` → `npm test` → `npm run build`. 모두 `TOSS_MOCK=1`, 네트워크 시크릿 없음.
 - `.pre-commit-config.yaml`: gitleaks hook. `scripts/secret-scan.sh` 로 수동 실행.
 - 로깅: `console` 래퍼 `log.info/warn/error` 가 모든 문자열을 `redact()` 통과.
   - redact 대상: `Bearer <…>`, `Basic <…>`, JWT(`eyJ…\.…\.…`), `access_token`/`client_secret`/`client_id` 값(JSON·form·query), `X-Tossinvest-Account: …`, 연속 숫자 8자리 이상·`\d{3,}-\d{2,}-\d{3,}` 계좌번호 패턴.
@@ -218,14 +221,19 @@ SSE (`/api/stream`): `Content-Type: text/event-stream`, `Cache-Control: no-cache
 ## 12. 서빙 (GX10)
 
 - 경로: `~/apps/toss-portfolio-dashboard` (git clone), 빌드 `npm ci && npm run build` (arm64 네이티브 바인딩 때문에 GX10 에서 빌드).
-- 실행: `node .output/server/index.mjs`, `HOST=<tailscale-ip>`, `PORT=8790` (GX10 에서 미사용 확인됨).
-- 접속: `http://<tailscale-ip>:8790` / `http://<tailscale-host>:8790` (Tailscale 내부만).
+- 실행: `node .output/server/index.mjs`. HOST는 `~/.config/toss-dashboard.env`에서만 지정한다. 예제의 `HOST=<tailscale-ip>`에서 `<tailscale-ip>`는 `tailscale ip -4`로 확인한 실제 주소로 바꿀 자리표시자다. 포트는 유닛의 `PORT=8790`을 사용한다.
+- 접속 주소 형식: `http://<tailscale-ip>:8790` / `http://<tailscale-host>:8790`. 꺾쇠 부분은 배포 장비의 Tailscale IP / 호스트명으로 바꾼다 (Tailscale 내부만).
 - `deploy/toss-dashboard.service` (systemd --user):
   `ExecStart=%h/.local/opt/node24/bin/node %h/apps/toss-portfolio-dashboard/.output/server/index.mjs`,
-  `EnvironmentFile=%h/.config/toss-dashboard.env`, `Environment=NODE_ENV=production HOST=<tailscale-ip> PORT=8790`,
+  `EnvironmentFile=%h/.config/toss-dashboard.env`, `Environment=NODE_ENV=production PORT=8790`,
   `MemoryMax=768M`, `MemoryHigh=640M`, `CPUQuota=100%`, `Nice=10`, `Restart=on-failure`, `RestartSec=10`, `StartLimitIntervalSec=0`(부팅 시 tailscale0 가 늦게 올라와도 재시도), `NoNewPrivileges=yes`, `PrivateTmp=yes`, `UMask=0077`, `--max-old-space-size=384`.
-- `scripts/install-service.sh`: 유닛을 `~/.config/systemd/user/` 로 복사, env 파일 없으면 예제 복사(경로만), `daemon-reload`. **enable/start 하지 않음.** 시작은 승혁님 확인 후 `systemctl --user enable --now toss-dashboard`.
-- linger: coldbrew 는 이미 `Linger=yes` (재부팅 후 자동 시작 가능).
+- `scripts/install-service.sh`: 유닛을 `~/.config/systemd/user/` 로 복사, env 파일 없으면 예제 복사(HOST 자리표시자와 경로), `daemon-reload`. **enable/start 하지 않음.** 시작은 서비스 계정의 설정 확인 후 `systemctl --user enable --now toss-dashboard`.
+- linger: 서비스 계정의 `Linger=yes` 설정을 확인한다 (재부팅 후 자동 시작에 필요).
+
+### 시작 시 HOST 검증
+
+- `bindHost.ts`의 순수 검증 함수를 `src/server/plugins/bindHost.ts`에서 동기 호출한다. `vite.config.ts`의 Nitro 플러그인 목록에 종료 플러그인보다 먼저 등록한다. 설치된 Nitro 버전은 플러그인의 예외를 다시 던지므로 HTTP 리스너가 열리기 전에 실패한다.
+- `NODE_ENV=production`이면 HOST 미설정·빈 값, `0.0.0.0`, `::`, `[::]`, `<...>` 자리표시자를 거부한다. 에러에는 설정값을 출력하지 않는다. 프로덕션의 `TOSS_MOCK=1`에도 적용하며 개발·테스트 모드는 그대로 유지한다.
 
 ### 종료 (SIGTERM / SIGINT)
 
