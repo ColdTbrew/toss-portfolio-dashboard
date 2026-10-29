@@ -88,7 +88,7 @@ export function createTokenStore(options: {
 			const timer = setTimeout(
 				() => controller.abort(),
 				options.timeoutMs ?? 15_000,
-			);
+			).unref();
 			try {
 				response = await fetchImpl(
 					`${TOSS_REST_BASE}${ALLOWED_ENDPOINTS.token}`,

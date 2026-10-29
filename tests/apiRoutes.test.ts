@@ -7,7 +7,7 @@ import {
 	getPortfolioService,
 	type PortfolioService,
 } from "../src/server/portfolioService";
-import { getSseHub } from "../src/server/sseHub";
+import { getSseHub, type SseHub } from "../src/server/sseHub";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
 	const fs = await importOriginal<typeof import("node:fs/promises")>();
@@ -23,6 +23,7 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 });
 const globals = globalThis as typeof globalThis & {
 	__tossPortfolioService?: PortfolioService;
+	__tossSseHub?: SseHub;
 };
 beforeEach(() => {
 	vi.useFakeTimers();
@@ -38,6 +39,7 @@ beforeEach(() => {
 afterEach(async () => {
 	await globals.__tossPortfolioService?.stop();
 	delete globals.__tossPortfolioService;
+	delete globals.__tossSseHub;
 	vi.unstubAllEnvs();
 	vi.unstubAllGlobals();
 	vi.useRealTimers();

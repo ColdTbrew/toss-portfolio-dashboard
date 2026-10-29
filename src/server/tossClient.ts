@@ -55,7 +55,7 @@ export function createTossClient(options: {
 			const timer = setTimeout(
 				() => controller.abort(),
 				options.timeoutMs ?? 15_000,
-			);
+			).unref();
 			let response: Response;
 			let body: { result?: T; error?: { code?: string } };
 			try {

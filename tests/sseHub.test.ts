@@ -6,6 +6,30 @@ import { NOW, rawFixture } from "./fixtures";
 afterEach(() => {
 	vi.useRealTimers();
 });
+
+it("ends every stream, clears timers and refuses connections after stop", async () => {
+	vi.useFakeTimers();
+	const hub = createSseHub();
+	const state = buildState(rawFixture());
+	const status = { ws: "idle" as const, lastRefreshAt: state.fetchedAt };
+	const readers = [hub.connect(state, status), hub.connect(state, status)].map(
+		(response) => response.body?.getReader(),
+	);
+	for (const reader of readers) await reader?.read();
+	hub.queueTick({
+		symbol: "FAKEUS",
+		market: "us",
+		price: 123,
+		timestamp: kstIso(NOW),
+	});
+	hub.stop();
+	hub.stop();
+	for (const reader of readers)
+		expect(await reader?.read()).toEqual({ done: true, value: undefined });
+	expect(hub.getClientCount()).toBe(0);
+	expect(hub.connect(state, status).status).toBe(503);
+	expect(vi.getTimerCount()).toBe(0);
+});
 it("sends an initial snapshot, coalesces ticks, heartbeats and removes aborted clients", async () => {
 	vi.useFakeTimers();
 	const hub = createSseHub();

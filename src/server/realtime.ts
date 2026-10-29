@@ -55,7 +55,8 @@ export function createRealtime(options: {
 	let error: string | null = null;
 	let clients = 0;
 	let holdings: Pick<HoldingRow, "symbol" | "market">[] = [];
-	let connecting = false;
+	let connecting: Promise<void> | undefined;
+	let stopping: Promise<void> | undefined;
 	let generation = 0;
 	let attempt = 0;
 	let declarationId = 0;
@@ -88,7 +89,12 @@ export function createRealtime(options: {
 		closing = undefined;
 	};
 	function declare(delay = 0) {
-		if (socket?.readyState !== WebSocket.OPEN || declaration) return;
+		if (
+			state === "stopped" ||
+			socket?.readyState !== WebSocket.OPEN ||
+			declaration
+		)
+			return;
 		declaration = setTimeout(
 			() => {
 				declaration = undefined;
@@ -114,15 +120,17 @@ export function createRealtime(options: {
 			},
 			Math.max(delay, timing.declarationMs - (now() - lastDeclared), 0),
 		);
+		declaration.unref();
 	}
 	function release() {
+		if (state === "stopped") return;
 		generation++;
 		clearTimeout(retry);
 		retry = undefined;
 		clearTimeout(declaration);
 		declaration = undefined;
 		if (!socket) {
-			if (state !== "stopped") setState("idle");
+			setState("idle");
 			return;
 		}
 		const current = socket;
@@ -138,10 +146,10 @@ export function createRealtime(options: {
 					lastDeclared = now();
 					current.close();
 				}
-				closing = setTimeout(() => current.terminate(), 1000);
+				closing = setTimeout(() => current.terminate(), 1000).unref();
 			};
 			const delay = Math.max(0, timing.declarationMs - (now() - lastDeclared));
-			if (delay) declaration = setTimeout(finish, delay);
+			if (delay) declaration = setTimeout(finish, delay).unref();
 			else finish();
 		} else current.terminate();
 	}
@@ -160,9 +168,10 @@ export function createRealtime(options: {
 		retry = setTimeout(() => {
 			retry = undefined;
 			void connect();
-		}, delay);
+		}, delay).unref();
 	}
 	function message(data: WebSocket.RawData) {
+		if (state === "stopped") return;
 		try {
 			const frame = JSON.parse(data.toString());
 			if (frame.type === "subscriptions" && Array.isArray(frame.rejected)) {
@@ -208,15 +217,20 @@ export function createRealtime(options: {
 			/* Malformed frames must not disrupt the shared connection. */
 		}
 	}
-	async function connect(): Promise<void> {
+	function connect(): Promise<void> {
 		if (
 			!wanted() ||
 			connecting ||
 			retry ||
 			(socket && socket.readyState !== WebSocket.CLOSED)
 		)
-			return;
-		connecting = true;
+			return Promise.resolve();
+		connecting = openConnection().finally(() => {
+			connecting = undefined;
+		});
+		return connecting;
+	}
+	async function openConnection(): Promise<void> {
 		const version = generation;
 		setState("connecting");
 		try {
@@ -234,6 +248,10 @@ export function createRealtime(options: {
 			});
 			socket = current;
 			current.on("open", () => {
+				if (state === "stopped") {
+					current.terminate();
+					return;
+				}
 				if (!wanted()) {
 					release();
 					return;
@@ -243,10 +261,10 @@ export function createRealtime(options: {
 				declare();
 				ping = setInterval(() => {
 					if (current.readyState === WebSocket.OPEN) current.send("PING");
-				}, timing.pingMs);
+				}, timing.pingMs).unref();
 				stable = setTimeout(() => {
 					attempt = 0;
-				}, timing.stableMs);
+				}, timing.stableMs).unref();
 			});
 			current.on("message", message);
 			current.on("unexpected-response", (_request, response) => {
@@ -274,7 +292,6 @@ export function createRealtime(options: {
 			error = safeError(cause);
 			if (state !== "stopped") schedule();
 		} finally {
-			connecting = false;
 			if (version !== generation && wanted() && !socket) schedule();
 		}
 	}
@@ -287,7 +304,7 @@ export function createRealtime(options: {
 			idle = undefined;
 			if (clients > 0) {
 				void connect();
-			} else idle = setTimeout(release, timing.idleMs);
+			} else idle = setTimeout(release, timing.idleMs).unref();
 		},
 		setHoldings(rows) {
 			if (state === "stopped") return;
@@ -323,7 +340,8 @@ export function createRealtime(options: {
 		},
 		getState: () => state,
 		getError: () => error,
-		async stop() {
+		stop() {
+			if (stopping) return stopping;
 			generation++;
 			setState("stopped");
 			clearTimeout(retry);
@@ -331,14 +349,21 @@ export function createRealtime(options: {
 			clearConnectionTimers();
 			retry = undefined;
 			idle = undefined;
-			if (socket && socket.readyState !== WebSocket.CLOSED) {
-				const current = socket;
-				await new Promise<void>((resolve) => {
-					current.once("close", resolve);
+			const current = socket;
+			const closed = new Promise<void>((resolve) => {
+				if (!current || current.readyState === WebSocket.CLOSED) resolve();
+				else {
+					current.once("close", () => resolve());
 					current.terminate();
-				});
-			}
-			socket = null;
+				}
+			});
+			// Token acquisition may still be persisting its cache under a file lock.
+			stopping = Promise.all([closed, connecting]).then(() => {
+				socket = null;
+				ticks.clear();
+				statuses.clear();
+			});
+			return stopping;
 		},
 	};
 }

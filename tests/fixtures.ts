@@ -3,6 +3,16 @@ import { readConfig } from "../src/server/config";
 import type { LedgerSnapshot } from "../src/server/ledger";
 
 export const NOW = Date.parse("2026-10-29T16:11:00+09:00");
+export function deferred<T>() {
+	let resolve: (value: T | PromiseLike<T>) => void = () => {};
+	let reject: (reason?: unknown) => void = () => {};
+	const promise = new Promise<T>((done, fail) => {
+		resolve = done;
+		reject = fail;
+	});
+	return { promise, resolve, reject };
+}
+
 export function fixtureConfig(directory: string, env: NodeJS.ProcessEnv = {}) {
 	return readConfig({
 		TOSS_ENV_PATH: `${directory}/fake.env`,

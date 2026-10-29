@@ -1,13 +1,14 @@
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { kstIso } from "../src/lib/compute";
 import type { RawPortfolio, Tick } from "../src/lib/types";
+import { withFileLock } from "../src/server/fileLock";
 import { createPortfolioService } from "../src/server/portfolioService";
 import type { Realtime } from "../src/server/realtime";
 import { createSseHub } from "../src/server/sseHub";
-import { fixtureConfig, NOW, rawFixture } from "./fixtures";
+import { deferred, fixtureConfig, NOW, rawFixture } from "./fixtures";
 
 afterEach(() => {
 	vi.useRealTimers();
@@ -35,6 +36,72 @@ function realtimeStub() {
 }
 
 describe("portfolio service", () => {
+	it("drains an append under its lock, stops polling and refuses an SSE request waiting for startup", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(NOW);
+		const directory = await mkdtemp(join(tmpdir(), "toss-fake-drain-"));
+		const lock = join(directory, "fake-append.lock");
+		const writing = deferred<void>();
+		const finish = deferred<void>();
+		const { holdings, krw, usd, fx } = rawFixture();
+		if (!holdings || !krw || !usd || !fx) throw new Error();
+		const client = {
+			listAccounts: vi.fn(async () => []),
+			getHoldings: vi.fn(async () => holdings),
+			getBuyingPower: vi.fn(async (_seq: number, currency: "KRW" | "USD") =>
+				currency === "KRW" ? krw : usd,
+			),
+			getExchangeRate: vi.fn(async () => fx),
+		};
+		const ledger = {
+			readTrend: async () => [],
+			appendSnapshot: vi.fn(() =>
+				withFileLock(lock, async () => {
+					writing.resolve();
+					await finish.promise;
+					return true;
+				}),
+			),
+		};
+		const { realtime } = realtimeStub();
+		const hub = createSseHub();
+		const service = createPortfolioService({
+			config: fixtureConfig(directory),
+			client,
+			ledger,
+			realtime,
+			hub,
+			account: async () => 42,
+			sleep: async () => {},
+		});
+		try {
+			const response = service.openStream();
+			await writing.promise;
+			const stopped = service.stop();
+			expect(service.stop()).toBe(stopped);
+			const completed = vi.fn();
+			void stopped.then(completed);
+			await Promise.resolve();
+			expect(completed).not.toHaveBeenCalled();
+			expect((await stat(lock)).isFile()).toBe(true);
+			finish.resolve();
+			await stopped;
+			expect(await readdir(directory)).toEqual([]);
+			expect((await response).status).toBe(503);
+			expect(hub.getClientCount()).toBe(0);
+			expect(realtime.stop).toHaveBeenCalledTimes(1);
+			await vi.advanceTimersByTimeAsync(600_000);
+			await service.start();
+			await service.refresh(true);
+			expect(client.getHoldings).toHaveBeenCalledTimes(1);
+			expect(ledger.appendSnapshot).toHaveBeenCalledTimes(1);
+			expect(vi.getTimerCount()).toBe(0);
+		} finally {
+			finish.resolve();
+			await service.stop();
+			await rm(directory, { recursive: true, force: true });
+		}
+	});
 	it("starts lazily, spaces REST calls, retains partial failures, preserves live prices across cash refresh and snapshots only raw REST", async () => {
 		let time = NOW;
 		const raw = rawFixture();

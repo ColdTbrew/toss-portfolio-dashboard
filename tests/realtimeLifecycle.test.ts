@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
 import { createRealtime, type Realtime } from "../src/server/realtime";
-import { NOW } from "./fixtures";
+import { deferred, NOW } from "./fixtures";
 
 class FakeSocket extends EventEmitter {
 	static instances: FakeSocket[] = [];
@@ -67,6 +67,97 @@ async function setup(
 }
 
 describe("realtime lifecycle without sockets", () => {
+	it("stops once, closes the socket and clears ping, idle, stable and declaration timers", async () => {
+		await setup();
+		const socket = FakeSocket.instances[0];
+		socket.open();
+		realtime.setClientCount(0);
+		expect(vi.getTimerCount()).toBe(4);
+		const terminate = vi.spyOn(socket, "terminate");
+		const status = vi.fn();
+		realtime.onStatus(status);
+		const stopped = realtime.stop();
+		expect(realtime.stop()).toBe(stopped);
+		await stopped;
+		expect(terminate).toHaveBeenCalledTimes(1);
+		expect(socket.readyState).toBe(WebSocket.CLOSED);
+		expect(status).toHaveBeenCalledExactlyOnceWith("stopped");
+		expect(vi.getTimerCount()).toBe(0);
+
+		// Late frames and fresh demand must never restart a stopped manager.
+		socket.emit(
+			"message",
+			Buffer.from(
+				JSON.stringify({
+					type: "error",
+					error: { code: "rate-limit-exceeded" },
+				}),
+			),
+		);
+		realtime.setClientCount(1);
+		realtime.setHoldings([{ symbol: "FAKENEW", market: "US" }]);
+		await realtime.connect();
+		await vi.advanceTimersByTimeAsync(600_000);
+		expect(FakeSocket.instances).toHaveLength(1);
+		expect(socket.frames).toEqual([]);
+		expect(realtime.getState()).toBe("stopped");
+		expect(vi.getTimerCount()).toBe(0);
+	});
+	it("cancels a queued reconnect", async () => {
+		const tokens = await setup();
+		FakeSocket.instances[0].terminate();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(realtime.getState()).toBe("backoff");
+		expect(vi.getTimerCount()).toBe(1);
+		await realtime.stop();
+		expect(vi.getTimerCount()).toBe(0);
+		await vi.advanceTimersByTimeAsync(600_000);
+		expect(tokens.getToken).toHaveBeenCalledTimes(1);
+		expect(FakeSocket.instances).toHaveLength(1);
+	});
+	it.each([
+		false,
+		true,
+	])("drains pending token acquisition without opening a socket (failure=%s)", async (fail) => {
+		const token = deferred<string>();
+		await setup({ tokens: { getToken: () => token.promise } });
+		const completed = vi.fn();
+		const stopped = realtime.stop();
+		void stopped.then(completed);
+		await Promise.resolve();
+		expect(completed).not.toHaveBeenCalled();
+		if (fail) token.reject(new Error("FAKE token write failure"));
+		else token.resolve("FAKE_FINISHED_TOKEN");
+		await stopped;
+		expect(completed).toHaveBeenCalledTimes(1);
+		await vi.advanceTimersByTimeAsync(600_000);
+		expect(FakeSocket.instances).toHaveLength(0);
+		expect(realtime.getState()).toBe("stopped");
+		expect(vi.getTimerCount()).toBe(0);
+	});
+	it("clears the idle close watchdog during shutdown", async () => {
+		await setup();
+		const socket = FakeSocket.instances[0];
+		socket.open();
+		await vi.advanceTimersByTimeAsync(1000);
+		// Simulate a peer that does not acknowledge the normal close handshake.
+		vi.spyOn(socket, "close").mockImplementation(() => {});
+		realtime.setHoldings([]);
+		expect(socket.frames.at(-1)).toBe("[]");
+		await realtime.stop();
+		expect(socket.readyState).toBe(WebSocket.CLOSED);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+	it("terminates an in-progress handshake without allowing a late open to start timers", async () => {
+		await setup();
+		const socket = FakeSocket.instances[0];
+		const stopped = realtime.stop();
+		socket.open();
+		await stopped;
+		expect(socket.readyState).toBe(WebSocket.CLOSED);
+		expect(vi.getTimerCount()).toBe(0);
+		expect(realtime.getState()).toBe("stopped");
+	});
 	it("uses the production 60 second PING and 120 second idle grace", async () => {
 		await setup();
 		const socket = FakeSocket.instances[0];

@@ -43,6 +43,7 @@ export function createPortfolioService(options: {
 	let cashFailures = 0;
 	let started: Promise<void> | undefined;
 	let inFlight: Promise<void> | undefined;
+	let stopping: Promise<void> | undefined;
 	let stopped = false;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let mockTimer: ReturnType<typeof setInterval> | undefined;
@@ -62,11 +63,13 @@ export function createPortfolioService(options: {
 		else delete state.errors.realtime;
 	}
 	function publish() {
+		if (stopped) return;
 		hub.broadcast("snapshot", state);
 		hub.broadcast("status", status());
 		for (const listener of listeners) listener(state);
 	}
 	function tick(tick: Tick) {
+		if (stopped) return;
 		const updated = applyTick(state, tick);
 		if (updated === state) return;
 		state = updated;
@@ -86,6 +89,7 @@ export function createPortfolioService(options: {
 		let seq: number;
 		try {
 			await pace();
+			if (stopped) return;
 			seq = await (options.account ?? getAccountSeq)();
 			delete errors.account;
 		} catch (cause) {
@@ -105,6 +109,7 @@ export function createPortfolioService(options: {
 			key: K,
 			fetcher: () => Promise<NonNullable<RawPortfolio[K]>>,
 		) {
+			if (stopped) return false;
 			await pace();
 			if (stopped) return false;
 			const began = now();
@@ -196,6 +201,7 @@ export function createPortfolioService(options: {
 			},
 			Math.max(1, Math.min(nextHoldings, nextCash) - now()),
 		);
+		timer.unref();
 	}
 	function start(): Promise<void> {
 		if (stopped) return Promise.resolve();
@@ -207,7 +213,7 @@ export function createPortfolioService(options: {
 				mockTimer = setInterval(() => {
 					for (const value of mockTicks(state, now(), options.random))
 						tick(value);
-				}, 1000);
+				}, 1000).unref();
 				return;
 			}
 			unsubscribeTick = realtime?.onTick(tick);
@@ -251,7 +257,8 @@ export function createPortfolioService(options: {
 				listeners.delete(listener);
 			};
 		},
-		async stop() {
+		stop() {
+			if (stopping) return stopping;
 			stopped = true;
 			clearTimeout(timer);
 			clearInterval(mockTimer);
@@ -259,8 +266,12 @@ export function createPortfolioService(options: {
 			unsubscribeTick?.();
 			unsubscribeStatus?.();
 			hub.stop();
-			await realtime?.stop();
-			await inFlight;
+			listeners.clear();
+			// refresh includes any ledger append/account write; never unlink its locks here.
+			stopping = Promise.all([realtime?.stop(), inFlight, started]).then(
+				() => {},
+			);
+			return stopping;
 		},
 	};
 }

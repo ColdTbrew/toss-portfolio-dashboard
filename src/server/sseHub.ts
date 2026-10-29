@@ -18,6 +18,7 @@ export function createSseHub(
 	const encoder = new TextEncoder();
 	let heartbeat: ReturnType<typeof setInterval> | undefined;
 	let batch: ReturnType<typeof setInterval> | undefined;
+	let stopped = false;
 	const notifyCount = () => {
 		for (const listener of counts) listener(clients.size);
 	};
@@ -56,6 +57,7 @@ export function createSseHub(
 			status: StreamStatus,
 			signal?: AbortSignal,
 		): Response {
+			if (stopped) return new Response(null, { status: 503 });
 			let cleanup = () => {};
 			const stream = new ReadableStream<Uint8Array>(
 				{
@@ -103,6 +105,8 @@ export function createSseHub(
 								broadcast("ticks", ticks);
 							}
 						}, options.batchMs ?? 250);
+						heartbeat.unref();
+						batch.unref();
 						notifyCount();
 					},
 					cancel() {
@@ -120,7 +124,13 @@ export function createSseHub(
 			});
 		},
 		stop() {
+			if (stopped) return;
+			stopped = true;
 			for (const client of clients) client.close();
+			clearInterval(heartbeat);
+			clearInterval(batch);
+			pending.clear();
+			counts.clear();
 		},
 	};
 }

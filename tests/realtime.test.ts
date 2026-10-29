@@ -235,9 +235,9 @@ describe("single realtime connection", () => {
 			WebSocket: socket as unknown as typeof WebSocket,
 		});
 		demand(realtime);
-		await realtime.stop();
+		const stopped = realtime.stop();
 		resolve("FAKE_LATE_TOKEN");
-		await delay(5);
+		await stopped;
 		expect(socket).not.toHaveBeenCalled();
 		expect(realtime.getState()).toBe("stopped");
 	});

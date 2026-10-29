@@ -11,7 +11,10 @@ const config = defineConfig(({ command }) => ({
 	resolve: { tsconfigPaths: true },
 	plugins: [
 		command === "serve" && devtools(),
-		nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+		nitro({
+			plugins: ["./src/server/plugins/shutdown.ts"],
+			rollupConfig: { external: [/^@sentry\//] },
+		}),
 		tailwindcss(),
 		tanstackStart(),
 		viteReact(),

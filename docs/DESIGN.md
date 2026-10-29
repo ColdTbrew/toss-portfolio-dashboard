@@ -227,6 +227,14 @@ SSE (`/api/stream`): `Content-Type: text/event-stream`, `Cache-Control: no-cache
 - `scripts/install-service.sh`: 유닛을 `~/.config/systemd/user/` 로 복사, env 파일 없으면 예제 복사(경로만), `daemon-reload`. **enable/start 하지 않음.** 시작은 승혁님 확인 후 `systemctl --user enable --now toss-dashboard`.
 - linger: coldbrew 는 이미 `Linger=yes` (재부팅 후 자동 시작 가능).
 
+### 종료 (SIGTERM / SIGINT)
+
+- `vite.config.ts` 의 Nitro `plugins` 에 `src/server/plugins/shutdown.ts` 를 명시 등록한다. 설치된 Nitro 3 버전은 기본 디렉터리 스캔이 꺼져 있고, `node-server` 의 신호 처리는 HTTP 리스너만 닫으므로 플러그인이 프로세스 신호와 Nitro `close` 훅을 모두 연결한다. 기존 서버 라우트 외 서버 모듈 import 는 이 수명주기 플러그인에서도 허용한다.
+- 프로세스 singleton 종료 promise 로 중복 신호/훅을 합친다. holdings·cash·fx 폴링(같은 루프의 일별 스냅샷 포함)과 mock 틱을 중단하고, WS 의 ping·재연결·idle·선언·안정화·close 타이머를 지운 뒤 소켓을 `terminate()` 한다. 이후 재연결은 금지한다. SSE 스트림을 모두 닫고 heartbeat·tick batch 타이머를 지우며 새 스트림에는 503 을 반환한다.
+- 진행 중인 refresh(장부 append·계좌 캐시 저장 포함)와 WS 토큰 획득(토큰 atomic write 포함)이 끝날 때까지 기다린다. 락은 기존 쓰기 함수의 `finally` 에서만 해제하며 종료 코드가 직접 unlink 하지 않는다. 폴링·WS·SSE 및 요청 timeout 타이머는 `unref()` 한다. 진행 중 작업의 짧은 pacing/락 대기·REST 재시도 대기는 작업 완료까지 유지한다.
+- 정상 정리 후 exit code 0 으로 자연 종료한다. 첫 신호/훅에서 시작하는 5초 `unref()` 타이머는 정리 후에도 남겨, 미완료 작업이나 다른 열린 핸들이 있으면 `process.exit(0)` 한다. 강제 종료 시 락을 먼저 풀지 않으며, 남은 락은 다음 프로세스가 기존 dead-pid/stale 규칙으로 회수한다. OS 장애로 5초 내 쓰기가 완료되지 않는 경우까지 정상 완료를 보장하지는 않는다.
+- systemd 유닛은 `TimeoutStopSec=15`, `KillMode=mixed`: 먼저 주 프로세스에 SIGTERM, 제한 시간 초과 시 남은 프로세스를 강제 종료한다.
+
 ## 13. 테스트 계획 (vitest)
 
 | 테스트 | 검증 |
