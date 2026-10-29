@@ -239,3 +239,32 @@ SSE (`/api/stream`): `Content-Type: text/event-stream`, `Cache-Control: no-cache
 | `realtime.test.ts` | 가짜 WS 서버로: 연결 1개만 / 재연결 백오프 / 중복 connect no-op / 구독 선언 형식 / PING 주기 |
 
 빌드 후 `.output/public` 에 `server/` 모듈·시크릿 경로 문자열이 없는지 간단 grep. 실제 API 스모크는 GX10 에서 `timeout` 으로 foreground 실행.
+
+## 14. 금액 가리기 (privacy mask)
+
+목적: 수익률·비중은 보이고 절대 금액은 안 보이는 화면을 캡처해서 공유할 수 있게.
+
+- 헤더에 토글 버튼 `금액 가리기` (눈 아이콘, `aria-pressed`). 상태는 `localStorage['tpd:maskAmounts']` 에 저장, 기본 off. SSR 첫 렌더는 **가린 상태**로 그리고 hydrate 후 저장값 적용 (저장값이 on 인데 SSR 이 금액을 내보내는 일을 막기 위함).
+- **진짜 마스킹:** 가려진 상태에서는 금액 숫자를 DOM·속성(`title`, `aria-label`, `data-*`)·차트 툴팁/라벨 어디에도 렌더하지 않는다. CSS blur 금지. 공용 컴포넌트 `<Amount value currency />` 가 `useMask()` 컨텍스트를 보고 `•••••` 만 렌더한다. 금액을 표시하는 모든 곳은 이 컴포넌트(또는 `formatAmount(value, {masked})`)만 거친다.
+- 가리는 것: 총자산, 현금(KRW/USD), 평가금액, 매입금액, 손익 금액, 오늘 손익 금액, 종목별 수량·평균가·평가금액·손익 금액, 차트의 금액 축·툴팁·라벨.
+- 보이는 것: 총 수익률, 오늘 수익률, 종목별 수익률·오늘 수익률, 비중 %, 현재가(시장 공개 정보, 내 자산 규모 유추 불가) , 환율, 차트 모양.
+  - 종목별 손익 막대 차트는 가려진 상태에서 **수익률(%) 막대**로 전환. 수익률 추이 차트는 `수익률` 모드만 허용(총자산 모드 비활성).
+- 내부 데이터(`PortfolioState`)는 그대로 클라이언트에 있다 — 이 기능은 *화면 캡처* 유출 방지용이지 접근 제어가 아니다 (대시보드 자체는 Tailscale 전용).
+
+## 15. 공유 이미지 추출 (`추출`)
+
+- 헤더 버튼 `추출` → 모달: 미리보기 + 옵션 체크박스 `금액 포함` (기본 **해제**, 토글 상태와 무관하게 매번 해제로 시작) + 버튼 `PNG 저장`, `클립보드 복사`(`navigator.clipboard.write` + `ClipboardItem` 지원 시에만 노출).
+- 카드 내용: 제목 "내 포트폴리오", 날짜(KST), 총 수익률, 오늘 수익률, 비중 도넛(상위 6 + 기타), 수익률 상위 종목 5개(종목명 + 수익률%), 하단 작은 워터마크 "toss-portfolio-dashboard". `금액 포함` 일 때만 총자산·손익 금액 추가.
+- **절대 포함 금지:** 계좌번호, accountSeq, 계좌명/고객명, 토큰.
+- 구현 (의존성 추가 없음):
+  - `src/lib/shareCard.ts` — 순수 함수 `buildShareCardModel(state, { includeAmounts, now }) → ShareCardModel`. 기본(includeAmounts=false) 모델에는 금액 필드 자체가 없다(타입으로 강제: `amounts?: {...}` 는 includeAmounts=true 일 때만 존재).
+  - `src/lib/shareCardCanvas.ts` — `drawShareCard(ctx, model, theme)` Canvas 2D 로 1080×1350 렌더(도넛은 arc 로 직접). `canvas.toBlob('image/png')` → 다운로드(`portfolio-YYYYMMDD.png`) / 클립보드.
+  - 테마: 현재 다크/라이트를 따른다.
+  - 미리보기도 같은 canvas 결과(`<img src=blob>`) — DOM 에 금액 텍스트가 생기지 않는다.
+
+## 16. 추가 테스트
+
+| 테스트 | 검증 |
+|---|---|
+| `mask.test.tsx` | 픽스처 상태로 대시보드 주요 컴포넌트(요약 카드, 보유 테이블, 차트 래퍼)를 `react-dom/server` `renderToStaticMarkup` 로 masked 렌더 → 픽스처의 모든 절대 금액(총자산, 현금, 평가·손익 금액, 수량, 평균가)의 포맷 문자열(콤마 포함/미포함, 원·$ 형식)이 HTML 에 **하나도 없음**, 수익률 % 문자열은 있음. unmasked 렌더에는 금액이 있음(테스트가 실제로 검출 가능한지 확인) |
+| `shareCard.test.ts` | 기본 모델 JSON 직렬화에 금액·수량 값 없음, `amounts` 키 없음, 계좌 관련 키 없음 / includeAmounts=true 일 때만 금액 존재 / 상위 종목은 수익률 내림차순 5개 / 가짜 Canvas 컨텍스트로 `drawShareCard` 호출 시 `fillText` 인자에 금액 문자열 없음(기본 모드) |
