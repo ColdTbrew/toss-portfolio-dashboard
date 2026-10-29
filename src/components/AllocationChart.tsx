@@ -1,6 +1,6 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { formatPercent } from "../lib/format";
-import { ALLOCATION_COLORS, allocationSlices } from "../lib/shareCard";
+import { allocationSlices } from "../lib/shareCard";
 import type { PortfolioState } from "../lib/types";
 
 export function AllocationChart({ state }: { state: PortfolioState }) {
@@ -9,7 +9,6 @@ export function AllocationChart({ state }: { state: PortfolioState }) {
 		<section className="panel" aria-labelledby="allocation-heading">
 			<div className="panel-heading">
 				<div>
-					<p className="eyebrow">ALLOCATION</p>
 					<h2 id="allocation-heading">자산 비중</h2>
 				</div>
 				<span className="subtle">현금 포함</span>
@@ -17,20 +16,20 @@ export function AllocationChart({ state }: { state: PortfolioState }) {
 			{data.length ? (
 				<div className="allocation-content">
 					<div className="donut-wrap">
-						<ResponsiveContainer width="100%" height={240}>
+						<ResponsiveContainer width="100%" height={160}>
 							<PieChart accessibilityLayer>
 								<Pie
 									data={data}
 									dataKey="weight"
 									nameKey="name"
-									innerRadius={72}
-									outerRadius={101}
-									paddingAngle={3}
+									innerRadius={61}
+									outerRadius={75}
+									paddingAngle={1.5}
 									stroke="none"
 									isAnimationActive={false}
 								>
 									{data.map((slice, index) => (
-										<Cell key={slice.name} fill={ALLOCATION_COLORS[index]} />
+										<Cell key={slice.name} fill={`var(--alloc-${index + 1})`} />
 									))}
 								</Pie>
 								<Tooltip
@@ -38,27 +37,27 @@ export function AllocationChart({ state }: { state: PortfolioState }) {
 									contentStyle={{
 										background: "var(--surface)",
 										border: "1px solid var(--border)",
-										borderRadius: 12,
+										borderRadius: "var(--radius-control)",
 										color: "var(--text)",
 									}}
 								/>
 							</PieChart>
 						</ResponsiveContainer>
 						<div className="donut-center">
-							<strong>
-								100<span>%</span>
-							</strong>
-							<small>전체 자산</small>
+							<small>
+								{state.holdings.length}종목
+								{state.cash && state.cash.totalKrw > 0 ? " + 현금" : ""}
+							</small>
 						</div>
 					</div>
 					<ul className="allocation-legend">
 						{data.map((slice, index) => (
 							<li key={slice.name}>
 								<span className="legend-name">
-									<i style={{ background: ALLOCATION_COLORS[index] }} />
-									{slice.name}
+									<i style={{ background: `var(--alloc-${index + 1})` }} />
+									<span title={slice.name}>{slice.name}</span>
 								</span>
-								<strong>{formatPercent(slice.weight)}</strong>
+								<span>{formatPercent(slice.weight)}</span>
 							</li>
 						))}
 					</ul>

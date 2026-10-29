@@ -72,7 +72,6 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 		>
 			<div className="panel-heading">
 				<div>
-					<p className="eyebrow">MY STOCKS</p>
 					<h2 id="holdings-heading">
 						보유종목 <span className="count">{state.holdings.length}</span>
 					</h2>
@@ -121,9 +120,9 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 										}
 									>
 										{label}{" "}
-										<span aria-hidden="true">
-											{sort.key === key ? (sort.asc ? "↑" : "↓") : "↕"}
-										</span>
+										{sort.key === key && (
+											<span aria-hidden="true">{sort.asc ? "↑" : "↓"}</span>
+										)}
 									</button>
 								</th>
 							))}
@@ -134,9 +133,7 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 							<tr key={`${row.market}:${row.symbol}`}>
 								<td>
 									<div className="stock-name">
-										<span
-											className={`market-icon ${row.market === "US" ? "us" : ""}`}
-										>
+										<span className="market-icon">
 											{row.market === "KR" ? "국" : "해"}
 										</span>
 										<div>
@@ -154,7 +151,7 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 									<Amount value={row.avgPrice} currency={row.currency} />
 								</td>
 								<PriceCell row={row} fx={state.fx?.midRate} />
-								<td>
+								<td className="valuation">
 									<Amount value={row.evalKrw} />
 									{row.currency === "USD" && (
 										<small>

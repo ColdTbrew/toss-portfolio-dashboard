@@ -4,6 +4,7 @@ import {
 	BarChart,
 	CartesianGrid,
 	Cell,
+	ReferenceLine,
 	ResponsiveContainer,
 	Text,
 	Tooltip,
@@ -17,7 +18,7 @@ import { useMask } from "./MaskProvider";
 
 export function PnlBarChart({ state }: { state: PortfolioState }) {
 	const { masked } = useMask();
-	const [axisWidth, setAxisWidth] = useState(144);
+	const [axisWidth, setAxisWidth] = useState(164);
 	// Only the selected metric enters Recharts payloads, including accessibility and tooltips.
 	const data = state.holdings
 		.map((row) => ({
@@ -36,7 +37,6 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 		<section className="panel" aria-labelledby="pnl-heading">
 			<div className="panel-heading">
 				<div>
-					<p className="eyebrow">PERFORMANCE</p>
 					<h2 id="pnl-heading">종목별 {masked ? "수익률" : "손익"}</h2>
 				</div>
 				<span className="subtle">{masked ? "% 기준" : "원화 환산"}</span>
@@ -45,7 +45,7 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 				<div className="bar-wrap">
 					<ResponsiveContainer
 						width="100%"
-						height={Math.max(260, data.length * 30)}
+						height={Math.max(252, data.length * 20 + 32)}
 						onResize={(width) =>
 							setAxisWidth(
 								Math.min(180, Math.max(112, Math.round(width * 0.36))),
@@ -56,18 +56,19 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 							key={masked ? "rate" : "amount"}
 							data={data}
 							layout="vertical"
-							margin={{ left: 0, right: 20, top: 8, bottom: 0 }}
+							margin={{ left: 0, right: 16, top: 0, bottom: 0 }}
 							accessibilityLayer
 						>
-							<CartesianGrid
-								stroke="var(--border)"
-								horizontal={false}
-								strokeDasharray="3 5"
-							/>
+							<CartesianGrid stroke="var(--grid)" horizontal={false} />
 							<XAxis
 								type="number"
-								tickFormatter={format}
-								tick={{ fontSize: 10, fill: "var(--muted)" }}
+								tickFormatter={(value) =>
+									masked
+										? format(value)
+										: `${formatAmount(value / 10000, { masked, signed: true }).replace("원", "만원")}`
+								}
+								tickCount={3}
+								tick={{ fontSize: 12, fill: "var(--muted)" }}
 								axisLine={false}
 								tickLine={false}
 							/>
@@ -88,7 +89,7 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 											breakAll
 											textAnchor="end"
 											verticalAnchor="middle"
-											style={{ fontSize: 11 }}
+											style={{ fontSize: 12 }}
 											fill="var(--muted)"
 										>
 											{String(payload.value)}
@@ -98,27 +99,34 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 								axisLine={false}
 								tickLine={false}
 							/>
+							<ReferenceLine x={0} stroke="var(--control)" />
 							<Tooltip
 								formatter={(value) => format(Number(value))}
-								cursor={{ fill: "var(--hover)" }}
+								cursor={false}
 								contentStyle={{
 									background: "var(--surface)",
 									border: "1px solid var(--border)",
-									borderRadius: 12,
+									borderRadius: "var(--radius-control)",
 									color: "var(--text)",
 								}}
 							/>
 							<Bar
 								dataKey="value"
 								name={masked ? "수익률" : "손익"}
-								radius={[4, 4, 4, 4]}
-								barSize={13}
+								radius={1}
+								barSize={12}
 								isAnimationActive={false}
 							>
 								{data.map((row) => (
 									<Cell
 										key={row.name}
-										fill={row.value >= 0 ? "var(--profit)" : "var(--loss)"}
+										fill={
+											row.value > 0
+												? "var(--profit)"
+												: row.value < 0
+													? "var(--loss)"
+													: "var(--neutral-num)"
+										}
 									/>
 								))}
 							</Bar>

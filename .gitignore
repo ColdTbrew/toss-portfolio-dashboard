@@ -24,3 +24,6 @@ account.json
 *.pem
 last_raw.json
 portfolio*.json*
+
+# taste-skill working files (screenshots, sheets)
+.taste-skill/

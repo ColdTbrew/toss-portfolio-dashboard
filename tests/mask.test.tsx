@@ -78,6 +78,7 @@ vi.mock("recharts", () => {
 		Line: Empty,
 		Cell: Empty,
 		CartesianGrid: Empty,
+		ReferenceLine: Empty,
 	};
 });
 
@@ -166,6 +167,7 @@ describe("privacy rendering", () => {
 	it("the same unmasked components expose the formatted values, so leak detection is effective", () => {
 		const state = privacyFixture();
 		const html = dashboard(false);
+		const text = html.replace(/<[^>]*>/g, "");
 		for (const value of [
 			state.totals.totalAssetsKrw,
 			state.totals.stocksEvalKrw,
@@ -175,12 +177,13 @@ describe("privacy rendering", () => {
 			state.cash?.krw,
 			state.cash?.totalKrw,
 		]) {
-			expect(html).toContain(formatKrw(value ?? 0));
+			expect(text).toContain(formatKrw(value ?? 0));
 		}
 		expect(html).toContain(formatUsd(state.cash?.usd ?? 0));
 		for (const row of state.holdings) {
 			for (const value of [
 				row.avgPrice,
+				row.lastPrice,
 				row.evalAmount,
 				row.profitLoss,
 				row.dailyPl,
@@ -193,6 +196,7 @@ describe("privacy rendering", () => {
 			);
 			expect(html).toContain(formatKrw(row.evalKrw));
 		}
+		expect(html).toContain(formatKrw(state.fx?.midRate ?? 0));
 		expect(html).not.toContain("•••••");
 		expect(html).toContain("종목별 손익");
 	});

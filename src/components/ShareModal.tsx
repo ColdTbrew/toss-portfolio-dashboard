@@ -107,7 +107,6 @@ export function ShareModal({
 		>
 			<div className="modal-heading">
 				<div>
-					<p className="eyebrow">SHARE YOUR PORTFOLIO</p>
 					<h2 id="share-heading">포트폴리오 추출</h2>
 				</div>
 				<button
@@ -116,7 +115,17 @@ export function ShareModal({
 					aria-label="닫기"
 					onClick={onClose}
 				>
-					×
+					<svg
+						aria-hidden="true"
+						width="20"
+						height="20"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+					>
+						<path d="m6 6 12 12M6 18 18 6" />
+					</svg>
 				</button>
 			</div>
 			<div className="share-preview">

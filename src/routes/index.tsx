@@ -2,15 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { AllocationChart } from "../components/AllocationChart";
+import { Amount } from "../components/Amount";
 import { HoldingsTable } from "../components/HoldingsTable";
 import { LiveBadge, type LiveStatus } from "../components/LiveBadge";
 import { useMask } from "../components/MaskProvider";
 import { PnlBarChart } from "../components/PnlBarChart";
 import { ShareModal } from "../components/ShareModal";
-import { SummaryCards } from "../components/SummaryCards";
+import { pnlClass, SummaryCards } from "../components/SummaryCards";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { TrendChart } from "../components/TrendChart";
 import { applyTick } from "../lib/compute";
+import { formatPercent } from "../lib/format";
 import type { PortfolioState, Tick, TrendPoint } from "../lib/types";
 
 const loadInitial = createIsomorphicFn()
@@ -118,9 +120,18 @@ function Dashboard() {
 					본문으로 이동
 				</a>
 				<div className="brand">
-					<span className="brand-mark" aria-hidden="true">
-						↗
-					</span>
+					<svg
+						className="brand-mark"
+						aria-hidden="true"
+						width="20"
+						height="20"
+						viewBox="0 0 20 20"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+					>
+						<path d="M3 2v15h15M6 12l4-4 3 2 4-6M6 4h4M6 7h2" />
+					</svg>
 					<span>내 포트폴리오</span>
 					<span className="read-only">조회 전용</span>
 				</div>
@@ -128,6 +139,7 @@ function Dashboard() {
 					<button
 						type="button"
 						className="button mask-button"
+						aria-label="금액 가리기"
 						aria-pressed={masked}
 						onClick={toggle}
 					>
@@ -143,8 +155,8 @@ function Dashboard() {
 							<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
 							<circle cx="12" cy="12" r="3" />
 							{masked && <path d="m3 3 18 18" />}
-						</svg>{" "}
-						금액 가리기
+						</svg>
+						<span className="mask-label">금액 가리기</span>
 					</button>
 					<ThemeToggle />
 					<button
@@ -152,34 +164,45 @@ function Dashboard() {
 						className="button primary-button"
 						onClick={() => setSharing(true)}
 					>
-						<span aria-hidden="true">↗</span> 추출
+						추출
 					</button>
 				</div>
 			</header>
 			<main id="main">
 				<div className="page-heading">
 					<div>
-						<p className="eyebrow">MY PORTFOLIO</p>
-						<h1>자산의 흐름을 한눈에</h1>
+						<h1>자산 현황</h1>
 						<p className="page-subtitle">
-							오늘의 변화부터 차곡차곡 쌓인 수익까지.
+							<span>
+								오늘{" "}
+								<span className={pnlClass(state.totals.dailyPlKrw)}>
+									<Amount value={state.totals.dailyPlKrw} signed />
+								</span>{" "}
+								<span className={pnlClass(state.totals.dailyPlRate)}>
+									({formatPercent(state.totals.dailyPlRate, true)})
+								</span>
+							</span>
+							{" · "}
+							<span>
+								총 수익률{" "}
+								<span className={pnlClass(state.totals.returnRate)}>
+									{formatPercent(state.totals.returnRate, true)}
+								</span>
+							</span>
 						</p>
 					</div>
 					<div className="connection-info">
+						<span className="subtle">{updated} KST 갱신</span>
 						<LiveBadge
 							connected={connected}
 							status={status}
 							mock={state.mock}
 						/>
-						<span className="subtle">
-							마지막 갱신 {updated} <span className="timezone">KST</span>
-						</span>
 					</div>
 				</div>
 				{state.mock && (
 					<div className="mock-banner">
-						<span className="mock-tag">DEMO</span>모의 데이터로 둘러보고 있어요.
-						실제 자산 정보가 아닙니다.
+						모의 데이터예요. 실제 자산 정보가 아닙니다.
 					</div>
 				)}
 				{Object.keys(state.errors).length > 0 && (
