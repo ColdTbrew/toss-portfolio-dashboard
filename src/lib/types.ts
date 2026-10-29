@@ -99,6 +99,7 @@ export interface TrendPoint {
 	date: string;
 	ts: string;
 	totalAssetsKrw: number;
+	stocksEvalKrw: number;
 	profitLossKrw: number;
 	purchaseKrw: number;
 	returnRate: number;

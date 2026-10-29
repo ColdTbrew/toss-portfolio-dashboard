@@ -470,6 +470,42 @@ h2 {
   font-size: var(--fs-small);
   color: var(--muted);
 }
+.principal-panel {
+  margin-bottom: var(--gap);
+}
+.principal-header {
+  margin-bottom: var(--gap);
+}
+.principal-change {
+  color: var(--muted);
+}
+.principal-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+.principal-controls .principal-compare {
+  gap: var(--gap);
+  padding: 0;
+  min-height: var(--control-height);
+}
+.principal-tooltip {
+  padding: var(--gap);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  font-size: var(--fs-small);
+}
+.principal-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gap);
+  margin-top: var(--gap);
+}
 .segmented {
   display: inline-flex;
   flex-shrink: 0;

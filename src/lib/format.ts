@@ -12,6 +12,11 @@ function format(value: number, digits: number, signed: boolean): string {
 export function formatKrw(value: number, signed = false): string {
 	return `${format(value, 0, signed)}원`;
 }
+export function formatKrwManwon(value: number): string {
+	return Number.isFinite(value)
+		? `${format(value / 10000, 0, false)}만원`
+		: "—";
+}
 export function formatUsd(value: number, signed = false): string {
 	const formatted = format(value, 2, signed);
 	return formatted.replace(/^([+-]?)(.*)$/, "$1$$$2");

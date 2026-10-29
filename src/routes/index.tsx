@@ -7,6 +7,7 @@ import { HoldingsTable } from "../components/HoldingsTable";
 import { LiveBadge, type LiveStatus } from "../components/LiveBadge";
 import { useMask } from "../components/MaskProvider";
 import { PnlBarChart } from "../components/PnlBarChart";
+import { PrincipalChart } from "../components/PrincipalChart";
 import { ShareModal } from "../components/ShareModal";
 import { pnlClass, SummaryCards } from "../components/SummaryCards";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -226,6 +227,7 @@ function Dashboard() {
 					<PnlBarChart state={state} />
 				</div>
 				<TrendChart points={trend} />
+				<PrincipalChart totals={state.totals} points={trend} />
 				<HoldingsTable state={state} />
 				<footer className="site-footer">
 					<span>

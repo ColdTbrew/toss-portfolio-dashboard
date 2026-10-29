@@ -35,6 +35,7 @@ describe("ledger", () => {
 				date: "2026-10-28",
 				ts: later.ts,
 				totalAssetsKrw: 168000,
+				stocksEvalKrw: 150000,
 				purchaseKrw: 135000,
 				profitLossKrw: 27000,
 				returnRate: 0.2,
@@ -43,6 +44,52 @@ describe("ledger", () => {
 		expect(warning).toHaveBeenCalledExactlyOnceWith(
 			"Ledger: skipped 2 invalid lines",
 		);
+	});
+	it("falls back to purchase plus profit/loss only when stock evaluation is absent", () => {
+		const { stocksEvalKRW: _stocks, ...totals } = ledgerFixture.totals;
+		const warning = vi.fn();
+		const points = parseTrend(
+			JSON.stringify({ ...ledgerFixture, totals }),
+			warning,
+		);
+		expect(points).toHaveLength(1);
+		expect(points[0].stocksEvalKrw).toBe(
+			Number(totals.purchaseKRW) + Number(totals.profitLossKRW),
+		);
+		expect(warning).not.toHaveBeenCalled();
+	});
+	it.each([
+		null,
+		"",
+		"not-a-number",
+		"NaN",
+		"Infinity",
+		{},
+		true,
+	])("skips a row with present but invalid stock evaluation (%j)", (stocksEvalKRW) => {
+		const warning = vi.fn();
+		expect(
+			parseTrend(
+				JSON.stringify({
+					...ledgerFixture,
+					totals: { ...ledgerFixture.totals, stocksEvalKRW },
+				}),
+				warning,
+			),
+		).toEqual([]);
+		expect(warning).toHaveBeenCalledExactlyOnceWith(
+			"Ledger: skipped 1 invalid lines",
+		);
+	});
+	it("preserves an explicit zero evaluation", () => {
+		expect(
+			parseTrend(
+				JSON.stringify({
+					...ledgerFixture,
+					totals: { ...ledgerFixture.totals, stocksEvalKRW: "0" },
+				}),
+			)[0].stocksEvalKrw,
+		).toBe(0);
 	});
 	it("matches the complete schema and preserves raw decimal strings", () => {
 		const snapshot = createSnapshot(rawFixture(), NOW);

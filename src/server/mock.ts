@@ -97,19 +97,33 @@ export function createMockRaw(now = Date.now()): RawPortfolio {
 }
 
 export function createMockTrend(now = Date.now()): TrendPoint[] {
-	const { totals } = buildState(createMockRaw(now));
+	const { totals, cash } = buildState(createMockRaw(now));
+	const purchases = [
+		{ day: 12, amount: 3000000 },
+		{ day: 30, amount: 5000000 },
+		{ day: 46, amount: 4000000 },
+	];
 	return Array.from({ length: 60 }, (_, index) => {
 		const ts = kstIso(now - (59 - index) * 86_400_000);
+		const purchaseKrw = purchases.reduce(
+			(principal, purchase) =>
+				principal - (index < purchase.day ? purchase.amount : 0),
+			totals.purchaseKrw,
+		);
 		const profitLossKrw =
-			totals.profitLossKrw * (0.5 + index / 118) + Math.sin(index / 5) * 180000;
+			index === 59
+				? totals.stocksEvalKrw - totals.purchaseKrw
+				: totals.profitLossKrw * (0.5 + index / 118) +
+					Math.sin(index / 5) * 180000;
+		const stocksEvalKrw = purchaseKrw + profitLossKrw;
 		return {
 			date: ts.slice(0, 10),
 			ts,
-			totalAssetsKrw:
-				totals.totalAssetsKrw - totals.profitLossKrw + profitLossKrw,
+			totalAssetsKrw: stocksEvalKrw + (cash?.totalKrw ?? 0),
+			stocksEvalKrw,
 			profitLossKrw,
-			purchaseKrw: totals.purchaseKrw,
-			returnRate: profitLossKrw / totals.purchaseKrw,
+			purchaseKrw,
+			returnRate: profitLossKrw / purchaseKrw,
 		};
 	});
 }
