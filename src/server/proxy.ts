@@ -1,7 +1,12 @@
-import type { HoldingRow } from "../lib/types";
+import type { HoldingRow, PortfolioState, Sparklines } from "../lib/types";
 import { type Config, type Now, readConfig } from "./config";
+import { finiteNumber, record } from "./parse";
 
-type JsonPath = "/api/portfolio" | "/api/trend" | "/api/health";
+type JsonPath =
+	| "/api/portfolio"
+	| "/api/trend"
+	| "/api/health"
+	| "/api/sparklines";
 type LogoHolding = Pick<HoldingRow, "symbol" | "name">;
 const noStore = { "Cache-Control": "no-store" };
 
@@ -48,6 +53,39 @@ export function createProxy(options: {
 	}
 
 	return {
+		async getSparklines(): Promise<Sparklines> {
+			try {
+				const { data } = await readJson("/api/sparklines");
+				return Object.fromEntries(
+					Object.entries(record(data)).flatMap(([symbol, values]) => {
+						if (!Array.isArray(values)) return [];
+						const closes = values
+							.filter(
+								(value): value is number =>
+									typeof value === "number" &&
+									Number.isFinite(value) &&
+									value > 0,
+							)
+							.slice(-30);
+						return closes.length ? [[symbol, closes]] : [];
+					}),
+				);
+			} catch {
+				return {};
+			}
+		},
+		async getFx(): Promise<PortfolioState["fx"]> {
+			const { data } = await readJson("/api/portfolio");
+			const fx = record(record(data).fx);
+			const midRate = finiteNumber(fx.midRate);
+			if (midRate === null || midRate <= 0 || typeof fx.validFrom !== "string")
+				return null;
+			return {
+				midRate,
+				buyRate: finiteNumber(fx.buyRate) ?? midRate,
+				validFrom: fx.validFrom,
+			};
+		},
 		async json(path: "/api/portfolio" | "/api/trend") {
 			try {
 				const { body } = await readJson(path);

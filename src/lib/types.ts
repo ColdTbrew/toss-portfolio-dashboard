@@ -1,5 +1,21 @@
 export type Money = string;
 export type Currency = "KRW" | "USD";
+export type Sparklines = Record<string, number[]>;
+export interface MarketItem {
+	id: string;
+	label: string;
+	value: number;
+	change: number | null;
+	/** Fraction, consistent with portfolio return rates. */
+	changeRate: number | null;
+	currency?: Currency;
+	asOf: string;
+	stale?: boolean;
+}
+export interface MarketState {
+	items: MarketItem[];
+	fetchedAt: string;
+}
 export interface ByCcy {
 	krw: Money;
 	usd: Money | null;

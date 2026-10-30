@@ -46,6 +46,7 @@ describe("portfolio service", () => {
 		const { holdings, krw, usd, fx } = rawFixture();
 		if (!holdings || !krw || !usd || !fx) throw new Error();
 		const client = {
+			getCandles: vi.fn(async () => []),
 			listAccounts: vi.fn(async () => []),
 			getHoldings: vi.fn(async () => holdings),
 			getBuyingPower: vi.fn(async (_seq: number, currency: "KRW" | "USD") =>
@@ -112,6 +113,7 @@ describe("portfolio service", () => {
 			return Promise.resolve(value);
 		};
 		const client = {
+			getCandles: vi.fn(async () => []),
 			listAccounts: vi.fn(async () => []),
 			getHoldings: vi.fn(() =>
 				record(raw.holdings as NonNullable<typeof raw.holdings>),
@@ -189,6 +191,7 @@ describe("portfolio service", () => {
 		vi.setSystemTime(NOW);
 		const raw = rawFixture();
 		const client = {
+			getCandles: vi.fn(async () => []),
 			listAccounts: vi.fn(async () => []),
 			getHoldings: vi.fn(async () => {
 				if (!raw.holdings) throw new Error();

@@ -1,13 +1,16 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { GET as health } from "../src/routes/api/health";
 import { GET as logo } from "../src/routes/api/logo";
+import { GET as market } from "../src/routes/api/market";
 import { GET as portfolio } from "../src/routes/api/portfolio";
+import { GET as sparklines } from "../src/routes/api/sparklines";
 import { GET as stream } from "../src/routes/api/stream";
 import { GET as trend } from "../src/routes/api/trend";
 import * as account from "../src/server/account";
 import { readConfig } from "../src/server/config";
 import * as ledger from "../src/server/ledger";
 import type { LogoService } from "../src/server/logos";
+import type { MarketService } from "../src/server/market";
 import {
 	createPortfolioService,
 	getPortfolioService,
@@ -57,13 +60,63 @@ vi.mock("node:fs/promises", () => ({
 const globals = globalThis as typeof globalThis & {
 	__tossProxy?: ProxyService;
 	__tossLogos?: LogoService;
+	__tossMarket?: MarketService;
 };
 afterEach(() => {
 	delete globals.__tossProxy;
 	delete globals.__tossLogos;
+	delete globals.__tossMarket;
 	vi.unstubAllEnvs();
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
+});
+
+it("proxies sparklines and gets FX from upstream while fetching only fixed Yahoo symbols locally", async () => {
+	vi.stubEnv("TOSS_MOCK", "0");
+	vi.stubEnv("UPSTREAM_URL", "https://upstream.invalid");
+	const fetcher = vi.fn<typeof fetch>(async (input) => {
+		const url = new URL(String(input));
+		if (url.pathname === "/api/sparklines")
+			return Response.json({ FAKEUS: [10, 11] });
+		if (url.pathname === "/api/portfolio")
+			return Response.json({
+				fx: { midRate: 1420, buyRate: 1425, validFrom: "2026-10-29T00:00:00Z" },
+			});
+		expect(url.hostname).toBe("query1.finance.yahoo.com");
+		return Response.json({
+			chart: {
+				result: [{ meta: { regularMarketPrice: 110, previousClose: 100 } }],
+			},
+		});
+	});
+	vi.stubGlobal("fetch", fetcher);
+	expect(await (await sparklines()).json()).toEqual({ FAKEUS: [10, 11] });
+	const data = await (await market()).json();
+	expect(data.items.at(-1)).toMatchObject({ id: "USD/KRW", value: 1420 });
+	expect(
+		fetcher.mock.calls.filter(
+			([url]) => new URL(String(url)).hostname === "query1.finance.yahoo.com",
+		),
+	).toHaveLength(4);
+	expect(getPortfolioService).not.toHaveBeenCalled();
+	const fs = await import("node:fs/promises");
+	for (const module of [account, ledger, realtime, tokens, toss, fs])
+		for (const fn of Object.values(module))
+			if (vi.isMockFunction(fn)) expect(fn).not.toHaveBeenCalled();
+});
+
+it("returns an empty sparkline route response for an older upstream without that API", async () => {
+	vi.stubEnv("TOSS_MOCK", "0");
+	vi.stubEnv("UPSTREAM_URL", "https://upstream.invalid");
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async () => new Response(null, { status: 404 })),
+	);
+	const response = await sparklines();
+	expect(response.status).toBe(200);
+	expect(response.headers.get("Cache-Control")).toBe("private, max-age=300");
+	expect(await response.json()).toEqual({});
+	expect(getPortfolioService).not.toHaveBeenCalled();
 });
 
 it("routes every proxy API without constructing local services, accessing private files, or forwarding client headers", async () => {

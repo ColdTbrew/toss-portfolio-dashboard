@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createTossClient } from "../src/server/tossClient";
+import { createTossClient, parseCandleCloses } from "../src/server/tossClient";
 
 const json = (body: unknown, status = 200, headers?: HeadersInit) =>
 	new Response(JSON.stringify(body), { status, headers });
@@ -20,6 +20,60 @@ function setup() {
 }
 
 describe("read-only REST client", () => {
+	it("parses newest-first candles defensively and returns oldest-first closes", () => {
+		expect(
+			parseCandleCloses({
+				candles: [
+					{ closePrice: "120" },
+					{ close: 110 },
+					{ closePrice: "bad", close: "105" },
+					{ closePrice: 100 },
+					null,
+					{},
+					{ close: "" },
+					{ close: " " },
+					{ close: null },
+					{ close: false },
+					{ close: "NaN" },
+					{ close: Infinity },
+					{ close: 0 },
+					{ close: -2 },
+				],
+			}),
+		).toEqual([100, 105, 110, 120]);
+		for (const result of [null, {}, { candles: {} }, { candles: [] }])
+			expect(parseCandleCloses(result)).toEqual([]);
+	});
+	it("fetches candles with only token authentication and the existing 429 backoff", async () => {
+		const { client, request, sleep } = setup();
+		request
+			.mockResolvedValueOnce(json({}, 429, { "Retry-After": "2" }))
+			.mockResolvedValueOnce(
+				json({
+					result: {
+						candles: [{ closePrice: "12" }, { close: 10 }],
+						nextBefore: null,
+					},
+				}),
+			);
+		expect(
+			await client.getCandles("FAKEUS", { interval: "1d", count: 30 }),
+		).toEqual([10, 12]);
+		expect(sleep).toHaveBeenCalledExactlyOnceWith(2000);
+		for (const [input, init] of request.mock.calls) {
+			const url = new URL(String(input));
+			expect(url.pathname).toBe("/api/v1/candles");
+			expect(Object.fromEntries(url.searchParams)).toEqual({
+				symbol: "FAKEUS",
+				interval: "1d",
+				count: "30",
+			});
+			expect(init).toMatchObject({ method: "GET", redirect: "error" });
+			const headers = new Headers(init?.headers);
+			expect(headers.has("Authorization")).toBe(true);
+			expect(headers.has("X-Tossinvest-Account")).toBe(false);
+		}
+	});
 	it("uses GET, account context, the response envelope and only fixed queries", async () => {
 		const { client, request } = setup();
 		request.mockImplementation(async () => json({ result: { fake: true } }));
