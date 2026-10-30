@@ -284,8 +284,12 @@ it("shows diagonal 1.00 with absent pairwise data and contains table scrolling i
 it("fetches same-origin analytics after mount, polls every 30 minutes and cleans up", async () => {
 	vi.useFakeTimers();
 	const gate = deferred<Response>();
-	const request = vi.fn<typeof fetch>(() =>
-		gate.promise.then((response) => response.clone()),
+	const request = vi.fn<typeof fetch>((url) =>
+		url === "/api/targets"
+			? Promise.resolve(
+					Response.json({ targets: {}, updatedAt: null, editable: true }),
+				)
+			: gate.promise.then((response) => response.clone()),
 	);
 	vi.stubGlobal("fetch", request);
 	root = createRoot(container);
@@ -296,19 +300,25 @@ it("fetches same-origin analytics after mount, polls every 30 minutes and cleans
 			</MaskProvider>,
 		),
 	);
-	expect(container.querySelectorAll(".analytics-panel")).toHaveLength(6);
+	expect(container.querySelectorAll(".analytics-panel")).toHaveLength(7);
 	expect(container.querySelectorAll('[aria-busy="true"]')).toHaveLength(6);
-	expect(request).toHaveBeenCalledExactlyOnceWith(
-		"/api/analytics",
-		expect.objectContaining({ method: "GET" }),
-	);
+	const analyticsCalls = () =>
+		request.mock.calls.filter(([url]) => url === "/api/analytics");
+	expect(analyticsCalls()).toEqual([
+		["/api/analytics", expect.objectContaining({ method: "GET" })],
+	]);
+	expect(
+		request.mock.calls.every(([url]) =>
+			["/api/analytics", "/api/targets"].includes(String(url)),
+		),
+	).toBe(true);
 	await act(async () => gate.resolve(Response.json(data)));
 	expect(container.querySelectorAll('[aria-busy="true"]')).toHaveLength(0);
 	await act(() => vi.advanceTimersByTimeAsync(1_799_999));
-	expect(request).toHaveBeenCalledTimes(1);
+	expect(analyticsCalls()).toHaveLength(1);
 	await act(() => vi.advanceTimersByTimeAsync(1));
-	expect(request).toHaveBeenCalledTimes(2);
+	expect(analyticsCalls()).toHaveLength(2);
 	await act(() => root?.unmount());
 	root = undefined;
-	expect(request.mock.calls[0][1]?.signal?.aborted).toBe(true);
+	expect(analyticsCalls()[0][1]?.signal?.aborted).toBe(true);
 });

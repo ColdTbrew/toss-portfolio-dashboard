@@ -5,6 +5,7 @@ import { ContributionChart } from "./ContributionChart";
 import { CorrelationMatrix } from "./CorrelationMatrix";
 import { FxEffect } from "./FxEffect";
 import { HoldingsHeatmap } from "./HoldingsHeatmap";
+import { RebalancePanel } from "./RebalancePanel";
 import { RiskMetrics } from "./RiskMetrics";
 
 export function AnalyticsSection({
@@ -30,6 +31,7 @@ export function AnalyticsSection({
 				<FxEffect state={state} data={data} />
 				<RiskMetrics state={state} points={points} data={data} />
 				<CorrelationMatrix state={state} data={data} />
+				<RebalancePanel state={state} />
 			</div>
 		</section>
 	);

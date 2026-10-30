@@ -6,6 +6,7 @@ import { GET as market } from "../src/routes/api/market";
 import { GET as portfolio } from "../src/routes/api/portfolio";
 import { GET as sparklines } from "../src/routes/api/sparklines";
 import { GET as stream } from "../src/routes/api/stream";
+import { PUT as putTargets, GET as targets } from "../src/routes/api/targets";
 import { GET as trend } from "../src/routes/api/trend";
 import * as account from "../src/server/account";
 import { readConfig } from "../src/server/config";
@@ -218,6 +219,20 @@ it("analytics fallback never constructs token, account, ledger, REST or realtime
 		benchmarks: {},
 		usdkrw: [],
 	});
+	expect(await (await targets()).json()).toEqual({
+		targets: {},
+		updatedAt: null,
+		editable: false,
+	});
+	expect(
+		(
+			await putTargets({
+				request: new Request("https://preview.invalid/api/targets", {
+					method: "PUT",
+				}),
+			})
+		).status,
+	).toBe(405);
 	expect(getPortfolioService).not.toHaveBeenCalled();
 	const fs = await import("node:fs/promises");
 	for (const module of [account, ledger, realtime, tokens, toss, fs])

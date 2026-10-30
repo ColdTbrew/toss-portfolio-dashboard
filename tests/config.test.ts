@@ -5,6 +5,32 @@ import { expect, it } from "vitest";
 import { readConfig, readCredentials } from "../src/server/config";
 import { fixtureConfig } from "./fixtures";
 
+it("places targets beside the resolved ledger unless explicitly overridden", () => {
+	expect(readConfig({}, "/tmp/FAKE_HOME").targetsPath).toBe(
+		"/tmp/FAKE_HOME/invest/targets.json",
+	);
+	expect(
+		readConfig(
+			{ PORTFOLIO_LEDGER_PATH: "~/fake-data/history.jsonl" },
+			"/tmp/FAKE_HOME",
+		).targetsPath,
+	).toBe("/tmp/FAKE_HOME/fake-data/targets.json");
+	expect(
+		readConfig({ PORTFOLIO_LEDGER_PATH: "/tmp/fake-ledger/history.jsonl" })
+			.targetsPath,
+	).toBe("/tmp/fake-ledger/targets.json");
+	expect(
+		readConfig(
+			{ TARGET_WEIGHTS_PATH: "~/fake-targets/custom.json" },
+			"/tmp/FAKE_HOME",
+		).targetsPath,
+	).toBe("/tmp/FAKE_HOME/fake-targets/custom.json");
+	expect(
+		readConfig({ TARGET_WEIGHTS_PATH: "/tmp/fake-targets/custom.json" })
+			.targetsPath,
+	).toBe("/tmp/fake-targets/custom.json");
+});
+
 it("expands home paths, validates timing, and disables snapshots in mock mode", () => {
 	const config = readConfig({ TOSS_MOCK: "1" }, "/tmp/FAKE_HOME");
 	expect(config.tokenPath).toBe("/tmp/FAKE_HOME/invest/.token.json");

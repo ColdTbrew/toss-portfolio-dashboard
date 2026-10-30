@@ -1104,7 +1104,8 @@ td small {
   max-height: 100%;
 }
 .analytics-table thead th,
-.fx-table tfoot > tr > * {
+.fx-table tfoot > tr > *,
+.rebalance-table tfoot > tr > * {
   position: sticky;
   z-index: 2;
   background: var(--surface);
@@ -1112,7 +1113,8 @@ td small {
 .analytics-table thead th {
   top: 0;
 }
-.fx-table tfoot > tr > * {
+.fx-table tfoot > tr > *,
+.rebalance-table tfoot > tr > * {
   bottom: 0;
 }
 .correlation-table thead th:first-child {
@@ -1146,6 +1148,42 @@ td small {
 }
 .risk-table {
   min-width: 420px;
+}
+.rebalance-table {
+  min-width: 570px;
+}
+.analytics-grid > section[aria-labelledby="rebalance-heading"] {
+  grid-column: 1 / -1;
+}
+.rebalance-table input {
+  width: 85px;
+  padding: 6px 8px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  text-align: right;
+}
+.rebalance-table input[aria-invalid="true"] {
+  border-color: var(--accent);
+}
+.rebalance-drift {
+  color: var(--accent);
+}
+.rebalance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 40px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.rebalance-hint {
+  line-height: 1.8;
+}
+.rebalance-field-error {
+  max-width: 150px;
+  white-space: normal;
 }
 .portfolio-risk {
   height: 100px;
