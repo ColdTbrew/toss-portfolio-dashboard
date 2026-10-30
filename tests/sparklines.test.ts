@@ -1,12 +1,31 @@
 import { afterEach, expect, it, vi } from "vitest";
+import type { DatedClose } from "../src/lib/types";
+import { type CandleHolding, createCandleCache } from "../src/server/candles";
+import { mockHistory } from "../src/server/mock";
 import { createProxy } from "../src/server/proxy";
-import { createSparklineService, mockCloses } from "../src/server/sparklines";
+import { createSparklineService } from "../src/server/sparklines";
+
+const series = [
+	{ date: "2026-10-28", close: 10 },
+	{ date: "2026-10-29", close: 11 },
+];
+function makeService(
+	options: Parameters<typeof createCandleCache>[0] & {
+		getHoldings: () => Promise<readonly CandleHolding[]>;
+	},
+) {
+	return createSparklineService({
+		getHoldings: options.getHoldings,
+		candles: createCandleCache(options),
+	});
+}
+
 import { deferred } from "./fixtures";
 
 afterEach(() => vi.useRealTimers());
 const held = [
-	{ symbol: "FAKEKR", lastPrice: 10000 },
-	{ symbol: "FAKEUS", lastPrice: 200 },
+	{ symbol: "FAKEKR", market: "KR" as const, lastPrice: 10000 },
+	{ symbol: "FAKEUS", market: "US" as const, lastPrice: 200 },
 ];
 
 it("fetches only held symbols, caches hits 15 minutes and misses 5 minutes, and drops sold symbols", async () => {
@@ -14,9 +33,9 @@ it("fetches only held symbols, caches hits 15 minutes and misses 5 minutes, and 
 	const getHoldings = vi.fn(async () => held);
 	const getCandles = vi.fn(async (symbol: string) => {
 		if (symbol === "FAKEUS") throw new Error("FAKE_PRIVATE_DETAIL");
-		return [10, 11];
+		return series;
 	});
-	const service = createSparklineService({
+	const service = makeService({
 		mock: false,
 		getHoldings,
 		getCandles,
@@ -31,7 +50,8 @@ it("fetches only held symbols, caches hits 15 minutes and misses 5 minutes, and 
 	]);
 	expect(getCandles).toHaveBeenCalledWith("FAKEKR", {
 		interval: "1d",
-		count: 30,
+		count: 200,
+		market: "KR",
 	});
 	now = 299_999;
 	await service.respond();
@@ -53,9 +73,10 @@ it("fetches only held symbols, caches hits 15 minutes and misses 5 minutes, and 
 it("limits all concurrent requests to two candle calls and deduplicates symbols", async () => {
 	const rows = Array.from({ length: 5 }, (_, i) => ({
 		symbol: `FAKE${i}`,
+		market: "US" as const,
 		lastPrice: 100,
 	}));
-	const gates = rows.map(() => deferred<number[]>());
+	const gates = rows.map(() => deferred<DatedClose[]>());
 	let active = 0;
 	let peak = 0;
 	const getCandles = vi.fn(async (symbol: string) => {
@@ -67,7 +88,7 @@ it("limits all concurrent requests to two candle calls and deduplicates symbols"
 			active--;
 		}
 	});
-	const service = createSparklineService({
+	const service = makeService({
 		mock: false,
 		getHoldings: async () => rows,
 		getCandles,
@@ -76,12 +97,12 @@ it("limits all concurrent requests to two candle calls and deduplicates symbols"
 	await vi.waitFor(() => expect(getCandles).toHaveBeenCalledTimes(2));
 	gates[0].reject(new Error("FAKE_ERROR"));
 	await vi.waitFor(() => expect(getCandles).toHaveBeenCalledTimes(3));
-	gates[1].resolve([10, 11]);
+	gates[1].resolve(series);
 	await vi.waitFor(() => expect(getCandles).toHaveBeenCalledTimes(4));
-	gates[2].resolve([10, 11]);
+	gates[2].resolve(series);
 	await vi.waitFor(() => expect(getCandles).toHaveBeenCalledTimes(5));
-	gates[3].resolve([10, 11]);
-	gates[4].resolve([10, 11]);
+	gates[3].resolve(series);
+	gates[4].resolve(series);
 	const data = await Promise.all(
 		(await Promise.all(responses)).map((response) => response.json()),
 	);
@@ -95,7 +116,7 @@ it("caches empty responses as misses and safely handles unavailable holdings", a
 	let now = 0;
 	const getHoldings = vi.fn(async () => held);
 	const getCandles = vi.fn(async () => []);
-	const service = createSparklineService({
+	const service = makeService({
 		mock: false,
 		getHoldings,
 		getCandles,
@@ -116,7 +137,7 @@ it("produces deterministic mock series without candles or network, ending at the
 	const getCandles = vi.fn(async () => {
 		throw new Error("No network");
 	});
-	const service = createSparklineService({
+	const service = makeService({
 		mock: true,
 		getHoldings: async () => held,
 		getCandles,
@@ -127,8 +148,8 @@ it("produces deterministic mock series without candles or network, ending at the
 		expect(first[row.symbol]).toHaveLength(30);
 		expect(first[row.symbol].at(-1)).toBe(row.lastPrice);
 	}
-	expect(mockCloses(held[0])).not.toEqual(
-		mockCloses({ ...held[0], symbol: "FAKEOTHER" }),
+	expect(mockHistory(held[0].symbol, held[0].lastPrice)).not.toEqual(
+		mockHistory("FAKEOTHER", held[0].lastPrice),
 	);
 	expect(getCandles).not.toHaveBeenCalled();
 });

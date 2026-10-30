@@ -10,3 +10,17 @@ export function finiteNumber(value: unknown): number | null {
 	const number = Number(value);
 	return Number.isFinite(number) ? number : null;
 }
+
+export function exchangeDate(time: number, timeZone: string): string | null {
+	if (!Number.isFinite(new Date(time).getTime())) return null;
+	try {
+		return new Intl.DateTimeFormat("en-CA", {
+			timeZone,
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+		}).format(time);
+	} catch {
+		return new Date(time).toISOString().slice(0, 10);
+	}
+}

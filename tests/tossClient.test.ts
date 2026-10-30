@@ -51,14 +51,20 @@ describe("read-only REST client", () => {
 			.mockResolvedValueOnce(
 				json({
 					result: {
-						candles: [{ closePrice: "12" }, { close: 10 }],
+						candles: [
+							{ closePrice: "12", timestamp: "2026-10-29T20:00:00Z" },
+							{ close: 10, timestamp: "2026-10-28T20:00:00Z" },
+						],
 						nextBefore: null,
 					},
 				}),
 			);
 		expect(
-			await client.getCandles("FAKEUS", { interval: "1d", count: 30 }),
-		).toEqual([10, 12]);
+			await client.getCandles("FAKEUS", { interval: "1d", count: 200 }),
+		).toEqual([
+			{ date: "2026-10-28", close: 10 },
+			{ date: "2026-10-29", close: 12 },
+		]);
 		expect(sleep).toHaveBeenCalledExactlyOnceWith(2000);
 		for (const [input, init] of request.mock.calls) {
 			const url = new URL(String(input));
@@ -66,7 +72,7 @@ describe("read-only REST client", () => {
 			expect(Object.fromEntries(url.searchParams)).toEqual({
 				symbol: "FAKEUS",
 				interval: "1d",
-				count: "30",
+				count: "200",
 			});
 			expect(init).toMatchObject({ method: "GET", redirect: "error" });
 			const headers = new Headers(init?.headers);

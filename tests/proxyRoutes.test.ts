@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { GET as analytics } from "../src/routes/api/analytics";
 import { GET as health } from "../src/routes/api/health";
 import { GET as logo } from "../src/routes/api/logo";
 import { GET as market } from "../src/routes/api/market";
@@ -198,6 +199,25 @@ it("routes every proxy API without constructing local services, accessing privat
 		"Local portfolio unavailable in proxy mode",
 	);
 	await stopPortfolioService();
+	expect(getPortfolioService).not.toHaveBeenCalled();
+	const fs = await import("node:fs/promises");
+	for (const module of [account, ledger, realtime, tokens, toss, fs])
+		for (const fn of Object.values(module))
+			if (vi.isMockFunction(fn)) expect(fn).not.toHaveBeenCalled();
+});
+
+it("analytics fallback never constructs token, account, ledger, REST or realtime services", async () => {
+	vi.stubEnv("TOSS_MOCK", "0");
+	vi.stubEnv("UPSTREAM_URL", "https://upstream.invalid");
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async () => new Response(null, { status: 404 })),
+	);
+	expect(await (await analytics()).json()).toMatchObject({
+		candles: {},
+		benchmarks: {},
+		usdkrw: [],
+	});
 	expect(getPortfolioService).not.toHaveBeenCalled();
 	const fs = await import("node:fs/promises");
 	for (const module of [account, ledger, realtime, tokens, toss, fs])

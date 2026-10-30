@@ -1,6 +1,17 @@
 export type Money = string;
 export type Currency = "KRW" | "USD";
 export type Sparklines = Record<string, number[]>;
+export interface DatedClose {
+	date: string;
+	close: number;
+}
+export type BenchmarkSymbol = "^KS11" | "^GSPC" | "^IXIC";
+export interface AnalyticsData {
+	fetchedAt: string;
+	candles: Record<string, DatedClose[]>;
+	benchmarks: Partial<Record<BenchmarkSymbol, DatedClose[]>>;
+	usdkrw: DatedClose[];
+}
 export interface MarketItem {
 	id: string;
 	label: string;
