@@ -46,17 +46,29 @@ export function buildState(
 	const purchaseKrw = convert(raw.holdings?.totalPurchaseAmount);
 	const profitLossKrw = convert(raw.holdings?.profitLoss.amount);
 	const totalAssetsKrw = stocksEvalKrw + (cash?.totalKrw ?? 0);
+	const needsFx =
+		usd !== 0 ||
+		Number(raw.holdings?.marketValue.amount.usd ?? 0) !== 0 ||
+		holdings.some((row) => row.currency === "USD");
+	const usableFx = Number.isFinite(mid) && mid > 0;
+	const valuationComplete =
+		raw.holdings !== null &&
+		cash !== null &&
+		Number.isFinite(cash.krw) &&
+		Number.isFinite(cash.usd) &&
+		Number.isFinite(cash.totalKrw) &&
+		Number.isFinite(stocksEvalKrw) &&
+		holdings.every((row) => Number.isFinite(row.evalKrw)) &&
+		(!needsFx || usableFx);
 	const stateErrors = { ...errors };
-	if (
-		!raw.fx &&
-		(usd !== 0 || holdings.some((row) => row.currency === "USD"))
-	) {
+	if (!usableFx && needsFx) {
 		stateErrors.fx ??=
-			"USD/KRW mid rate unavailable; KRW totals exclude USD amounts";
+			"USD/KRW mid rate unavailable; KRW valuation is incomplete";
 	}
 	return {
 		fetchedAt: kstIso(now),
 		mock,
+		valuationComplete,
 		fx: raw.fx
 			? {
 					midRate: mid,

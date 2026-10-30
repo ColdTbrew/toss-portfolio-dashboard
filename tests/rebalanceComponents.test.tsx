@@ -85,6 +85,46 @@ function assertPrivate(html: string) {
 	expect(html).not.toMatch(/class="(?:profit|loss)"/);
 }
 
+it.each([
+	true,
+	false,
+])("suppresses directions and partial amounts with missing FX (masked: %s), then restores them", async (masked) => {
+	localStorage.setItem("tpd:maskAmounts", String(masked));
+	const raw = rawFixture();
+	raw.fx = null;
+	root = createRoot(container);
+	const render = (state: ReturnType<typeof buildState>) =>
+		root?.render(
+			<MaskProvider>
+				<RebalancePanel state={state} initial={initial} />
+			</MaskProvider>,
+		);
+	await act(() => render(buildState(raw)));
+	expect(
+		container.querySelector('[aria-live="polite"]')?.textContent,
+	).toContain("자산 평가에 필요한 정보");
+	for (const row of container.querySelectorAll("tbody tr")) {
+		const cells = row.querySelectorAll("td");
+		expect(cells[0].textContent).toBe("—");
+		expect(cells[2].textContent).toBe("—");
+		expect(cells[3].textContent).toBe("—");
+	}
+	expect(container.querySelector("tbody")?.textContent).toContain("70.00%");
+	expect(container.querySelector("tbody")?.textContent).not.toMatch(
+		/매수|매도/,
+	);
+	expect(container.innerHTML).not.toMatch(amountPattern);
+	if (!masked)
+		expect(container.querySelector("tfoot")?.textContent).toContain(
+			"순 필요 현금 —",
+		);
+	await act(() => render(buildState(rawFixture())));
+	expect(container.querySelector('[aria-live="polite"]')).toBeNull();
+	expect(container.querySelector("tbody")?.textContent).toMatch(/매수/);
+	expect(container.querySelector("tbody")?.textContent).toMatch(/매도/);
+	if (!masked) expect(container.textContent).toContain("13,600원");
+});
+
 it("renders weights, drift, cash and totals, and emits no amounts in masked SSR markup or attributes", () => {
 	const masked = renderToStaticMarkup(
 		<MaskProvider>

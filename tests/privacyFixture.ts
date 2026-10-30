@@ -5,6 +5,7 @@ export function privacyFixture(): PortfolioState {
 	return {
 		fetchedAt: "2026-10-29T16:11:00+09:00",
 		mock: true,
+		valuationComplete: true,
 		errors: {},
 		fx: {
 			midRate: 1300,
