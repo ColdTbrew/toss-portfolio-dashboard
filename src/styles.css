@@ -394,10 +394,14 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--muted);
+}
+.legend-name > span {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: var(--muted);
 }
 .legend-name i {
   width: 7px;
@@ -406,6 +410,7 @@ h1 {
   border-radius: 2px;
 }
 .allocation-legend strong {
+  flex: none;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -689,7 +694,7 @@ td small {
   .allocation-legend {
     width: 100%;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 20px;
   }
   .allocation-legend li {
@@ -828,6 +833,15 @@ td small {
   .site-footer {
     flex-direction: column;
     gap: 8px;
+  }
+}
+@media (max-width: 420px) {
+  .donut-wrap {
+    width: min(100%, 240px);
+    min-width: 0;
+  }
+  .allocation-legend {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -56,7 +56,7 @@ export function AllocationChart({ state }: { state: PortfolioState }) {
 							<li key={slice.name}>
 								<span className="legend-name">
 									<i style={{ background: ALLOCATION_COLORS[index] }} />
-									{slice.name}
+									<span>{slice.name}</span>
 								</span>
 								<strong>{formatPercent(slice.weight)}</strong>
 							</li>
