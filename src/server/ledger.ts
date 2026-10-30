@@ -136,11 +136,16 @@ export function parseTrend(
 			};
 			const purchaseKrw = readNumber("purchaseKRW");
 			const profitLossKrw = readNumber("profitLossKRW");
+			const stocksEvalKrw = Object.hasOwn(totals, "stocksEvalKRW")
+				? readNumber("stocksEvalKRW")
+				: purchaseKrw + profitLossKrw;
+			if (!Number.isFinite(stocksEvalKrw)) throw new Error();
 			const point: TrendPoint = {
 				date: value.date,
 				ts: value.ts,
 				purchaseKrw,
 				profitLossKrw,
+				stocksEvalKrw,
 				totalAssetsKrw: readNumber("totalAssetsKRW"),
 				returnRate: ratio(profitLossKrw, purchaseKrw),
 			};

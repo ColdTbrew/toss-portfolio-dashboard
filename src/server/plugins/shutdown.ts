@@ -1,8 +1,8 @@
 import { definePlugin } from "nitro";
-import { getPortfolioService } from "../portfolioService";
+import { stopPortfolioService } from "../portfolioService";
 import { getShutdownCoordinator } from "../shutdown";
 
 export default definePlugin((app) => {
-	const shutdown = getShutdownCoordinator(() => getPortfolioService().stop());
+	const shutdown = getShutdownCoordinator(stopPortfolioService);
 	app.hooks?.hook("close", shutdown);
 });

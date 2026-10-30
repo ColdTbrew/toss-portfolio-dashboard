@@ -19,6 +19,53 @@ it("expands home paths, validates timing, and disables snapshots in mock mode", 
 	);
 });
 
+it.each([
+	"http://upstream.invalid:8790",
+	"https://upstream.invalid/",
+])("accepts an upstream origin and disables local snapshots: %s", (upstream) => {
+	const config = readConfig({ UPSTREAM_URL: upstream });
+	expect(config.proxy?.upstream.href).toBe(new URL(upstream).href);
+	expect(config.mock).toBe(false);
+	expect(config.snapshotEnabled).toBe(false);
+	expect(readConfig({}).proxy).toBeNull();
+});
+
+it.each([
+	"",
+	"upstream.invalid",
+	"ftp://upstream.invalid",
+	"file:///fake",
+	"http://user@upstream.invalid",
+	"http://user:FAKE@upstream.invalid",
+	"http://@upstream.invalid",
+	"http://upstream.invalid/api",
+	"http://upstream.invalid/path/..",
+	"http://upstream.invalid//",
+	"http://upstream.invalid?",
+	"http://upstream.invalid#",
+	"http://upstream.invalid?fake=1",
+	"http://upstream.invalid/#fake",
+	"http:\\upstream.invalid",
+	" http://upstream.invalid",
+	"http://upstream.invalid\n",
+])("rejects invalid upstream configuration without echoing it: %j", (upstream) => {
+	expect(() => readConfig({ UPSTREAM_URL: upstream })).toThrow(
+		/^Invalid UPSTREAM_URL$/,
+	);
+});
+
+it("rejects mixed mock/proxy mode and credential reads in proxy mode", async () => {
+	expect(() =>
+		readConfig({ TOSS_MOCK: "1", UPSTREAM_URL: "http://upstream.invalid" }),
+	).toThrow("TOSS_MOCK and UPSTREAM_URL are incompatible");
+	await expect(
+		readCredentials(
+			readConfig({ UPSTREAM_URL: "http://upstream.invalid" }),
+			{},
+		),
+	).rejects.toThrow("Credentials unavailable in proxy mode");
+});
+
 it("reads only configured fake credentials, honors env precedence, and masks file errors", async () => {
 	const directory = await mkdtemp(join(tmpdir(), "toss-fake-config-"));
 	try {

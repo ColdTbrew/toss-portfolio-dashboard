@@ -2,7 +2,7 @@
 
 토스증권 국내·해외 보유종목, 현금, 수익률을 한 화면에서 확인하는 **조회 전용** 대시보드입니다. TanStack Start · React 19 · Tailwind v4 · Recharts · Node 24를 사용합니다. GX10에서 빌드하고 Tailscale 내부에서 접속합니다.
 
-거래를 실행하는 기능은 없습니다. 토스 REST 호출은 인증, 계좌 목록, 보유종목, 현금, 환율 조회만 허용하며, WebSocket은 국내·미국 체결 구독만 사용합니다. 서버의 연결 하나를 여러 브라우저가 SSE로 공유합니다. 로컬 토큰·계좌 캐시와 일별 장부는 저장하지만 토스 자산을 변경하지 않습니다. 허용 경로와 요청 메서드는 자동 테스트로 검사합니다.
+거래를 실행하는 기능은 없습니다. 토스 REST 호출은 인증, 계좌 목록, 보유종목, 현금, 환율, 캔들 조회만 허용하며, WebSocket은 국내·미국 체결 구독만 사용합니다. 서버의 연결 하나를 여러 브라우저가 SSE로 공유합니다. 로컬 토큰·계좌 캐시와 일별 장부는 저장하지만 토스 자산을 변경하지 않습니다. 허용 경로와 요청 메서드는 자동 테스트로 검사합니다.
 
 ## 개발: 모의 데이터
 
@@ -38,7 +38,8 @@ npm run dev:mock
 | `TOSS_ACCOUNT_PATH` | `~/invest/account.json` | 계좌 식별자 캐시 |
 | `PORTFOLIO_LEDGER_PATH` | `~/invest/portfolio.jsonl` | 기존 장부 읽기·일별 스냅샷 append |
 | `TOSS_MOCK` | 미설정 | `1`이면 모의 데이터 |
-| `SNAPSHOT_ENABLED` | `1` | `0`이면 일별 기록 중단; mock에서는 항상 중단 |
+| `UPSTREAM_URL` | 미설정 | 기존 대시보드의 HTTP(S) 원점; proxy preview 모드 |
+| `SNAPSHOT_ENABLED` | `1` | `0`이면 일별 기록 중단; mock/proxy에서는 항상 중단 |
 | `SNAPSHOT_TIME_KST` | `16:10` | 해당 시각 이후 첫 성공 갱신 때 하루 1회 기록 |
 | `REFRESH_HOLDINGS_SEC` | `30` | 보유종목 갱신 주기 |
 | `REFRESH_CASH_FX_SEC` | `60` | 현금·환율 갱신 주기 |
@@ -46,6 +47,24 @@ npm run dev:mock
 | `PORT` | 배포 유닛에서 `8790` 지정 | HTTP 수신 포트 |
 
 서버 환경의 `TOSS_CLIENT_ID`, `TOSS_CLIENT_SECRET`도 지원하지만, 배포 예제에는 HOST 자리표시자와 경로만 둡니다. 실제 주소·인증 값을 클라이언트용 환경 변수로 넣거나 레포·로그·스크린샷에 남기지 마세요.
+
+## Proxy preview
+
+이미 실행 중인 대시보드의 데이터를 별도 인스턴스에서 표시하려면 빌드 후 실행합니다. 자리표시자는 실제 환경에 맞게 레포 밖에서 바꿉니다.
+
+```bash
+UPSTREAM_URL='http://<upstream-host>:8790' HOST='<tailscale-ip>' PORT=8791 node .output/server/index.mjs
+```
+
+`UPSTREAM_URL`은 경로·쿼리·fragment·사용자 인증 정보가 없는 HTTP(S) 원점이어야 하며 `TOSS_MOCK=1`과 함께 사용할 수 없습니다. 포트폴리오·추이·SSE는 기존 인스턴스에서 전달하며, preview는 토큰·계좌·환경·장부 파일이나 토스 REST/WebSocket을 사용하지 않고 스냅샷도 기록하지 않습니다. `/api/health`는 `proxy`, `mock`, `upstreamReachable`을 반환하며 원본 주소를 노출하지 않습니다.
+
+로고는 preview 서버가 CDN에서 직접 받아 보유종목에 한해 제공합니다. 보유종목 허용 목록은 30초, 로고는 최대 200개를 메모리에 저장합니다(성공 24시간, 실패 1시간). 브라우저는 `/api/logo`에만 접근합니다. 모의 모드에서는 네트워크 없이 단색 SVG를 만들며 두 종목은 기존 배지로 표시합니다.
+
+## 시장 동향과 종목 추이
+
+`/api/market`은 Yahoo의 고정 지수·원유 심볼(`^IXIC`, `^GSPC`, `^KS11`, `CL=F`)만 서버에서 `range=1d&interval=1d`로 조회하며 60초간 캐시합니다. 전일 종가는 `chartPreviousClose`, `previousClose`, 끝에서 두 번째 유효 종가 순서로 사용합니다. 달러/원은 포트폴리오의 기존 중간환율을 재사용합니다. Proxy에서도 Yahoo는 로컬 서버에서 조회하고 환율은 upstream 포트폴리오에서 가져옵니다. 실패하면 마지막 정상 시세를 흐리게 표시하거나 해당 항목을 생략합니다. 시장 가격은 금액 가리기 중에도 유지됩니다. 모바일에서는 2열로 표시하며 항목 수가 홀수이면 마지막 항목이 행 전체를 차지합니다.
+
+`/api/sparklines`는 현재 보유종목의 최근 일봉 30개를 토스 캔들 API에서 조회합니다. 보유종목은 이미 이를 보유한 토스에만 전달하며 Yahoo 등 제3자에 전달하지 않습니다. 동시 요청은 2개, 성공 캐시는 15분, 실패 캐시는 5분입니다. Proxy는 upstream의 같은 API를 사용하며 미지원·오류 시 빈 결과를 반환합니다. 그래프는 종목명 셀의 심볼 줄 아래 공간을 미리 확보하고 420px 이하에서도 56×18 크기로 표시하여 모바일 표 너비를 유지합니다. 두 기능 모두 모의 모드에서는 외부 네트워크 없이 고정 데이터를 사용합니다.
 
 ## GX10 배포
 
@@ -81,7 +100,7 @@ npm test
 npx --no-install biome check src tests
 npm run build
 ./scripts/secret-scan.sh
-rg -l '[/~]invest/|TOSS_(ENV|TOKEN|ACCOUNT)_PATH|PORTFOLIO_LEDGER_PATH|openapi(-ws)?\.tossinvest\.com|createPortfolioService|createTokenStore|src/server/|TanStackDevtools' .output/public
+rg -l '[/~]invest/|TOSS_(ENV|TOKEN|ACCOUNT)_PATH|PORTFOLIO_LEDGER_PATH|openapi(-ws)?\.tossinvest\.com|createPortfolioService|createTokenStore|src/server/|TanStackDevtools|static\.toss\.im|UPSTREAM_URL|finance\.yahoo' .output/public
 ```
 
 마지막 검색은 결과가 없어야 합니다. 실시간 통합 테스트는 가짜 WebSocket 서버를 loopback에 바인드하므로 포트 바인드를 막는 샌드박스에서는 해당 테스트가 실패합니다. 나머지 검사와 실제 CI 환경의 전체 테스트는 통과해야 합니다.

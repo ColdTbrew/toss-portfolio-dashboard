@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { ratio } from "../lib/compute";
 import { formatMoney, formatPercent } from "../lib/format";
-import type { HoldingRow, PortfolioState } from "../lib/types";
+import type { HoldingRow, PortfolioState, Sparklines } from "../lib/types";
+import { usePollingJson } from "../lib/usePollingJson";
 import { Amount } from "./Amount";
+import { Sparkline } from "./Sparkline";
 import { pnlClass } from "./SummaryCards";
 
 type SortKey =
@@ -27,6 +29,37 @@ const columns: [SortKey, string][] = [
 	["weight", "비중"],
 ];
 
+export function StockLogo({ row }: { row: HoldingRow }) {
+	const imageRef = useRef<HTMLImageElement>(null);
+	const [loadedSymbol, setLoadedSymbol] = useState<string | null>(null);
+	const loaded = loadedSymbol === row.symbol;
+	useEffect(() => {
+		const image = imageRef.current;
+		// SSR images can finish loading before hydration attaches onLoad.
+		setLoadedSymbol(
+			image?.complete && image.naturalWidth > 0 ? row.symbol : null,
+		);
+	}, [row.symbol]);
+	return (
+		<span
+			className={`market-icon${row.market === "US" ? " us" : ""}`}
+			aria-hidden="true"
+		>
+			{!loaded && (row.market === "KR" ? "국" : "해")}
+			<img
+				ref={imageRef}
+				src={`/api/logo?symbol=${encodeURIComponent(row.symbol)}`}
+				alt=""
+				loading="lazy"
+				decoding="async"
+				className={loaded ? "loaded" : ""}
+				onLoad={() => setLoadedSymbol(row.symbol)}
+				onError={() => setLoadedSymbol(null)}
+			/>
+		</span>
+	);
+}
+
 function PriceCell({ row, fx }: { row: HoldingRow; fx?: number }) {
 	const previous = useRef(row.lastPrice);
 	const [flash, setFlash] = useState("");
@@ -49,6 +82,7 @@ function PriceCell({ row, fx }: { row: HoldingRow; fx?: number }) {
 }
 
 export function HoldingsTable({ state }: { state: PortfolioState }) {
+	const sparklines = usePollingJson<Sparklines>("/api/sparklines", 900_000);
 	const [market, setMarket] = useState<"ALL" | "KR" | "US">("ALL");
 	const [sort, setSort] = useState<{ key: SortKey; asc: boolean }>({
 		key: "evalKrw",
@@ -134,16 +168,13 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 							<tr key={`${row.market}:${row.symbol}`}>
 								<td>
 									<div className="stock-name">
-										<span
-											className={`market-icon ${row.market === "US" ? "us" : ""}`}
-										>
-											{row.market === "KR" ? "국" : "해"}
-										</span>
+										<StockLogo row={row} />
 										<div>
 											<strong>{row.name}</strong>
 											<small>
 												{row.symbol} · {row.market === "KR" ? "국내" : "미국"}
 											</small>
+											<Sparkline closes={sparklines?.[row.symbol]} />
 										</div>
 									</div>
 								</td>

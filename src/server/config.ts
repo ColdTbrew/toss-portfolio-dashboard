@@ -8,6 +8,7 @@ export interface Config {
 	accountPath: string;
 	ledgerPath: string;
 	mock: boolean;
+	proxy: { upstream: URL } | null;
 	snapshotEnabled: boolean;
 	snapshotTimeKst: string;
 	refreshHoldingsMs: number;
@@ -38,13 +39,34 @@ export function readConfig(
 	if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(snapshotTimeKst))
 		throw new Error("Invalid SNAPSHOT_TIME_KST");
 	const mock = env.TOSS_MOCK === "1";
+	let proxy: Config["proxy"] = null;
+	if (env.UPSTREAM_URL !== undefined) {
+		try {
+			if (!/^https?:\/\/[^/?#@\\\s]+\/?$/i.test(env.UPSTREAM_URL))
+				throw new Error();
+			const upstream = new URL(env.UPSTREAM_URL);
+			if (
+				!/^https?:$/.test(upstream.protocol) ||
+				upstream.username ||
+				upstream.password ||
+				upstream.pathname !== "/" ||
+				/[?#]/.test(env.UPSTREAM_URL)
+			)
+				throw new Error();
+			proxy = { upstream };
+		} catch {
+			throw new Error("Invalid UPSTREAM_URL");
+		}
+		if (mock) throw new Error("TOSS_MOCK and UPSTREAM_URL are incompatible");
+	}
 	return {
 		envPath: path(env.TOSS_ENV_PATH ?? "~/invest/.toss.env"),
 		tokenPath: path(env.TOSS_TOKEN_PATH ?? "~/invest/.token.json"),
 		accountPath: path(env.TOSS_ACCOUNT_PATH ?? "~/invest/account.json"),
 		ledgerPath: path(env.PORTFOLIO_LEDGER_PATH ?? "~/invest/portfolio.jsonl"),
 		mock,
-		snapshotEnabled: !mock && env.SNAPSHOT_ENABLED !== "0",
+		proxy,
+		snapshotEnabled: !mock && !proxy && env.SNAPSHOT_ENABLED !== "0",
 		snapshotTimeKst,
 		refreshHoldingsMs: seconds("REFRESH_HOLDINGS_SEC", 30),
 		refreshCashFxMs: seconds("REFRESH_CASH_FX_SEC", 60),
@@ -60,6 +82,7 @@ export async function readCredentials(
 	env: NodeJS.ProcessEnv = process.env,
 ): Promise<Credentials> {
 	if (config.mock) throw new Error("Credentials unavailable in mock mode");
+	if (config.proxy) throw new Error("Credentials unavailable in proxy mode");
 	const values: Record<string, string | undefined> = { ...env };
 	if (!values.TOSS_CLIENT_ID || !values.TOSS_CLIENT_SECRET) {
 		let source: string;

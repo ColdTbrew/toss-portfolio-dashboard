@@ -4,33 +4,50 @@ import { useEffect, useState } from "react";
 import { AllocationChart } from "../components/AllocationChart";
 import { HoldingsTable } from "../components/HoldingsTable";
 import { LiveBadge, type LiveStatus } from "../components/LiveBadge";
+import { MarketStrip } from "../components/MarketStrip";
 import { useMask } from "../components/MaskProvider";
 import { PnlBarChart } from "../components/PnlBarChart";
+import { PrincipalChart } from "../components/PrincipalChart";
 import { ShareModal } from "../components/ShareModal";
 import { SummaryCards } from "../components/SummaryCards";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { TrendChart } from "../components/TrendChart";
 import { applyTick } from "../lib/compute";
-import type { PortfolioState, Tick, TrendPoint } from "../lib/types";
+import type {
+	MarketState,
+	PortfolioState,
+	Tick,
+	TrendPoint,
+} from "../lib/types";
 
 const loadInitial = createIsomorphicFn()
 	.server(async () => {
-		const [portfolio, trend] = await Promise.all([
+		const [portfolio, trend, market] = await Promise.all([
 			import("./api/portfolio"),
 			import("./api/trend"),
+			import("./api/market"),
 		]);
-		return Promise.all([portfolio.GET(), trend.GET()]);
+		return Promise.all([portfolio.GET(), trend.GET(), market.GET()]);
 	})
-	.client(() => Promise.all([fetch("/api/portfolio"), fetch("/api/trend")]));
+	.client(() =>
+		Promise.all([
+			fetch("/api/portfolio"),
+			fetch("/api/trend"),
+			fetch("/api/market"),
+		]),
+	);
 
 export const Route = createFileRoute("/")({
 	loader: async () => {
-		const [portfolio, trend] = await loadInitial();
+		const [portfolio, trend, market] = await loadInitial();
 		if (!portfolio.ok) throw new Error("포트폴리오를 불러오지 못했어요.");
 		return {
 			state: (await portfolio.json()) as PortfolioState,
 			trend: trend.ok ? ((await trend.json()) as TrendPoint[]) : [],
 			trendError: !trend.ok,
+			market: market.ok
+				? ((await market.json()) as MarketState)
+				: { items: [], fetchedAt: "" },
 		};
 	},
 	component: Dashboard,
@@ -197,12 +214,14 @@ function Dashboard() {
 						일별 기록을 갱신하지 못했어요. 잠시 후 다시 연결합니다.
 					</div>
 				)}
+				<MarketStrip initial={initial.market} />
 				<SummaryCards state={state} />
 				<div className="charts-grid">
 					<AllocationChart state={state} />
 					<PnlBarChart state={state} />
 				</div>
 				<TrendChart points={trend} />
+				<PrincipalChart totals={state.totals} points={trend} />
 				<HoldingsTable state={state} />
 				<footer className="site-footer">
 					<span>

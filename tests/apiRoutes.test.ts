@@ -1,12 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as health } from "../src/routes/api/health";
+import { GET as logo } from "../src/routes/api/logo";
+import { GET as market } from "../src/routes/api/market";
 import { GET as portfolio } from "../src/routes/api/portfolio";
+import { GET as sparklines } from "../src/routes/api/sparklines";
 import { GET as stream } from "../src/routes/api/stream";
 import { GET as trend } from "../src/routes/api/trend";
+import type { LogoService } from "../src/server/logos";
+import type { MarketService } from "../src/server/market";
 import {
 	getPortfolioService,
 	type PortfolioService,
 } from "../src/server/portfolioService";
+import type { SparklineService } from "../src/server/sparklines";
 import { getSseHub, type SseHub } from "../src/server/sseHub";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
@@ -24,6 +30,9 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 const globals = globalThis as typeof globalThis & {
 	__tossPortfolioService?: PortfolioService;
 	__tossSseHub?: SseHub;
+	__tossLogos?: LogoService;
+	__tossMarket?: MarketService;
+	__tossSparklines?: SparklineService;
 };
 beforeEach(() => {
 	vi.useFakeTimers();
@@ -40,12 +49,47 @@ afterEach(async () => {
 	await globals.__tossPortfolioService?.stop();
 	delete globals.__tossPortfolioService;
 	delete globals.__tossSseHub;
+	delete globals.__tossLogos;
+	delete globals.__tossMarket;
+	delete globals.__tossSparklines;
 	vi.unstubAllEnvs();
 	vi.unstubAllGlobals();
 	vi.useRealTimers();
 });
 
 describe("server routes in mock mode", () => {
+	it("serves deterministic market and held sparklines without network, private files or portfolio startup", async () => {
+		const first = await sparklines();
+		expect(first.headers.get("Cache-Control")).toBe("private, max-age=300");
+		const data = await first.json();
+		expect(data).toEqual(await (await sparklines()).json());
+		expect(Object.keys(data)).toHaveLength(12);
+		const prices = await market();
+		expect(prices.headers.get("Cache-Control")).toBe("private, max-age=30");
+		expect((await prices.json()).items).toHaveLength(5);
+		expect(globals.__tossPortfolioService).toBeUndefined();
+		expect(fetch).not.toHaveBeenCalled();
+		const fs = await import("node:fs/promises");
+		expect(fs.readFile).not.toHaveBeenCalled();
+		expect(fs.open).not.toHaveBeenCalled();
+		expect(fs.writeFile).not.toHaveBeenCalled();
+	});
+	it("serves deterministic local mock logos only for held symbols without network or file access", async () => {
+		const request = (symbol: string) =>
+			new Request(`http://preview.invalid/api/logo?symbol=${symbol}`);
+		const first = await logo({ request: request("FAKEK1") });
+		expect(first.headers.get("Content-Type")).toBe("image/svg+xml");
+		expect(await first.text()).toBe(
+			await (await logo({ request: request("FAKEK1") })).text(),
+		);
+		for (const symbol of ["FAKEK2", "FAKEU2", "UNKNOWN"])
+			expect((await logo({ request: request(symbol) })).status).toBe(404);
+		expect(fetch).not.toHaveBeenCalled();
+		const fs = await import("node:fs/promises");
+		expect(fs.readFile).not.toHaveBeenCalled();
+		expect(fs.open).not.toHaveBeenCalled();
+		expect(fs.writeFile).not.toHaveBeenCalled();
+	});
 	it("returns cached data, trend and health with no external network or private files", async () => {
 		const response = await portfolio();
 		const data = await response.json();
