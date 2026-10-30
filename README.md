@@ -38,7 +38,8 @@ npm run dev:mock
 | `TOSS_ACCOUNT_PATH` | `~/invest/account.json` | 계좌 식별자 캐시 |
 | `PORTFOLIO_LEDGER_PATH` | `~/invest/portfolio.jsonl` | 기존 장부 읽기·일별 스냅샷 append |
 | `TOSS_MOCK` | 미설정 | `1`이면 모의 데이터 |
-| `SNAPSHOT_ENABLED` | `1` | `0`이면 일별 기록 중단; mock에서는 항상 중단 |
+| `UPSTREAM_URL` | 미설정 | 기존 대시보드의 HTTP(S) 원점; proxy preview 모드 |
+| `SNAPSHOT_ENABLED` | `1` | `0`이면 일별 기록 중단; mock/proxy에서는 항상 중단 |
 | `SNAPSHOT_TIME_KST` | `16:10` | 해당 시각 이후 첫 성공 갱신 때 하루 1회 기록 |
 | `REFRESH_HOLDINGS_SEC` | `30` | 보유종목 갱신 주기 |
 | `REFRESH_CASH_FX_SEC` | `60` | 현금·환율 갱신 주기 |
@@ -46,6 +47,18 @@ npm run dev:mock
 | `PORT` | 배포 유닛에서 `8790` 지정 | HTTP 수신 포트 |
 
 서버 환경의 `TOSS_CLIENT_ID`, `TOSS_CLIENT_SECRET`도 지원하지만, 배포 예제에는 HOST 자리표시자와 경로만 둡니다. 실제 주소·인증 값을 클라이언트용 환경 변수로 넣거나 레포·로그·스크린샷에 남기지 마세요.
+
+## Proxy preview
+
+이미 실행 중인 대시보드의 데이터를 별도 인스턴스에서 표시하려면 빌드 후 실행합니다. 자리표시자는 실제 환경에 맞게 레포 밖에서 바꿉니다.
+
+```bash
+UPSTREAM_URL='http://<upstream-host>:8790' HOST='<tailscale-ip>' PORT=8791 node .output/server/index.mjs
+```
+
+`UPSTREAM_URL`은 경로·쿼리·fragment·사용자 인증 정보가 없는 HTTP(S) 원점이어야 하며 `TOSS_MOCK=1`과 함께 사용할 수 없습니다. 포트폴리오·추이·SSE는 기존 인스턴스에서 전달하며, preview는 토큰·계좌·환경·장부 파일이나 토스 REST/WebSocket을 사용하지 않고 스냅샷도 기록하지 않습니다. `/api/health`는 `proxy`, `mock`, `upstreamReachable`을 반환하며 원본 주소를 노출하지 않습니다.
+
+로고는 preview 서버가 CDN에서 직접 받아 보유종목에 한해 제공합니다. 보유종목 허용 목록은 30초, 로고는 최대 200개를 메모리에 저장합니다(성공 24시간, 실패 1시간). 브라우저는 `/api/logo`에만 접근합니다. 모의 모드에서는 네트워크 없이 단색 SVG를 만들며 두 종목은 기존 배지로 표시합니다.
 
 ## GX10 배포
 

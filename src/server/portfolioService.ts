@@ -21,6 +21,8 @@ export function createPortfolioService(options: {
 	ledger?: ReturnType<typeof createLedger>;
 }) {
 	const { config } = options;
+	if (config.proxy)
+		throw new Error("Local portfolio unavailable in proxy mode");
 	const now = options.now ?? Date.now;
 	const wait = options.sleep ?? sleep;
 	const hub = options.hub ?? getSseHub();
@@ -285,4 +287,8 @@ export function getPortfolioService(): PortfolioService {
 		config: readConfig(),
 	});
 	return globals.__tossPortfolioService;
+}
+
+export async function stopPortfolioService() {
+	await globals.__tossPortfolioService?.stop();
 }

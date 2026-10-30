@@ -2,6 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 
 // Reused by the SSR loader without an HTTP round trip.
 export async function GET() {
+	const { getProxy } = await import("../../server/proxy");
+	const proxy = getProxy();
+	if (proxy) return proxy.json("/api/portfolio");
 	const { getPortfolioService } = await import("../../server/portfolioService");
 	const service = getPortfolioService();
 
