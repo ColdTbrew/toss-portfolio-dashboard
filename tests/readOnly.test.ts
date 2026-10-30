@@ -53,6 +53,7 @@ it("restricts all source paths, HTTP mutations and WS subscription types", async
 			ALLOWED_ENDPOINTS.holdings,
 			ALLOWED_ENDPOINTS.buyingPower,
 			ALLOWED_ENDPOINTS.exchangeRate,
+			ALLOWED_ENDPOINTS.candles,
 		].sort(),
 	);
 });

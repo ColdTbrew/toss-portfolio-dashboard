@@ -6,6 +6,7 @@ import type {
 } from "../lib/types";
 import { type Now, readConfig, type Sleep, sleep } from "./config";
 import { ALLOWED_ENDPOINTS, TOSS_REST_BASE } from "./endpoints";
+import { finiteNumber, record } from "./parse";
 import { redact, summarizeHttpError } from "./redact";
 import { getTokenStore, type TokenStore } from "./tokenStore";
 
@@ -19,6 +20,22 @@ export interface TossClient {
 	getHoldings(seq: number): Promise<HoldingsOverview>;
 	getBuyingPower(seq: number, currency: Currency): Promise<BuyingPower>;
 	getExchangeRate(): Promise<ExchangeRate>;
+	getCandles(
+		symbol: string,
+		options: { interval: "1d"; count: number },
+	): Promise<number[]>;
+}
+
+export function parseCandleCloses(result: unknown): number[] {
+	const candles = record(result).candles;
+	if (!Array.isArray(candles)) return [];
+	return candles
+		.flatMap((candle: unknown) => {
+			const row = record(candle);
+			const close = finiteNumber(row.closePrice) ?? finiteNumber(row.close);
+			return close !== null && close > 0 ? [close] : [];
+		})
+		.reverse();
 }
 
 export function createTossClient(options: {
@@ -140,6 +157,15 @@ export function createTossClient(options: {
 				baseCurrency: "USD",
 				quoteCurrency: "KRW",
 			}),
+		async getCandles(symbol, { interval, count }) {
+			return parseCandleCloses(
+				await get(ALLOWED_ENDPOINTS.candles, {
+					symbol,
+					interval,
+					count: String(count),
+				}),
+			);
+		},
 	};
 }
 

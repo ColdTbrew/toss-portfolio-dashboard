@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
+import { Route as ApiMarketRouteImport } from './routes/api/market'
 import { Route as ApiPortfolioRouteImport } from './routes/api/portfolio'
+import { Route as ApiSparklinesRouteImport } from './routes/api/sparklines'
 import { Route as ApiStreamRouteImport } from './routes/api/stream'
 import { Route as ApiTrendRouteImport } from './routes/api/trend'
 
@@ -31,9 +33,19 @@ const ApiLogoRoute = ApiLogoRouteImport.update({
   path: '/api/logo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMarketRoute = ApiMarketRouteImport.update({
+  id: '/api/market',
+  path: '/api/market',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPortfolioRoute = ApiPortfolioRouteImport.update({
   id: '/api/portfolio',
   path: '/api/portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSparklinesRoute = ApiSparklinesRouteImport.update({
+  id: '/api/sparklines',
+  path: '/api/sparklines',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStreamRoute = ApiStreamRouteImport.update({
@@ -51,7 +63,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/health': typeof ApiHealthRoute
   '/api/logo': typeof ApiLogoRoute
+  '/api/market': typeof ApiMarketRoute
   '/api/portfolio': typeof ApiPortfolioRoute
+  '/api/sparklines': typeof ApiSparklinesRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/trend': typeof ApiTrendRoute
 }
@@ -59,7 +73,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/health': typeof ApiHealthRoute
   '/api/logo': typeof ApiLogoRoute
+  '/api/market': typeof ApiMarketRoute
   '/api/portfolio': typeof ApiPortfolioRoute
+  '/api/sparklines': typeof ApiSparklinesRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/trend': typeof ApiTrendRoute
 }
@@ -68,7 +84,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/api/health': typeof ApiHealthRoute
   '/api/logo': typeof ApiLogoRoute
+  '/api/market': typeof ApiMarketRoute
   '/api/portfolio': typeof ApiPortfolioRoute
+  '/api/sparklines': typeof ApiSparklinesRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/trend': typeof ApiTrendRoute
 }
@@ -78,7 +96,9 @@ export interface FileRouteTypes {
     | '/'
     | '/api/health'
     | '/api/logo'
+    | '/api/market'
     | '/api/portfolio'
+    | '/api/sparklines'
     | '/api/stream'
     | '/api/trend'
   fileRoutesByTo: FileRoutesByTo
@@ -86,7 +106,9 @@ export interface FileRouteTypes {
     | '/'
     | '/api/health'
     | '/api/logo'
+    | '/api/market'
     | '/api/portfolio'
+    | '/api/sparklines'
     | '/api/stream'
     | '/api/trend'
   id:
@@ -94,7 +116,9 @@ export interface FileRouteTypes {
     | '/'
     | '/api/health'
     | '/api/logo'
+    | '/api/market'
     | '/api/portfolio'
+    | '/api/sparklines'
     | '/api/stream'
     | '/api/trend'
   fileRoutesById: FileRoutesById
@@ -103,7 +127,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiLogoRoute: typeof ApiLogoRoute
+  ApiMarketRoute: typeof ApiMarketRoute
   ApiPortfolioRoute: typeof ApiPortfolioRoute
+  ApiSparklinesRoute: typeof ApiSparklinesRoute
   ApiStreamRoute: typeof ApiStreamRoute
   ApiTrendRoute: typeof ApiTrendRoute
 }
@@ -131,11 +157,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLogoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/market': {
+      id: '/api/market'
+      path: '/api/market'
+      fullPath: '/api/market'
+      preLoaderRoute: typeof ApiMarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/portfolio': {
       id: '/api/portfolio'
       path: '/api/portfolio'
       fullPath: '/api/portfolio'
       preLoaderRoute: typeof ApiPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sparklines': {
+      id: '/api/sparklines'
+      path: '/api/sparklines'
+      fullPath: '/api/sparklines'
+      preLoaderRoute: typeof ApiSparklinesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/stream': {
@@ -159,7 +199,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiLogoRoute: ApiLogoRoute,
+  ApiMarketRoute: ApiMarketRoute,
   ApiPortfolioRoute: ApiPortfolioRoute,
+  ApiSparklinesRoute: ApiSparklinesRoute,
   ApiStreamRoute: ApiStreamRoute,
   ApiTrendRoute: ApiTrendRoute,
 }
