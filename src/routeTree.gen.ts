@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiAnalyticsRouteImport } from './routes/api/analytics'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMarketRouteImport } from './routes/api/market'
@@ -21,6 +22,11 @@ import { Route as ApiTrendRouteImport } from './routes/api/trend'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnalyticsRoute = ApiAnalyticsRouteImport.update({
+  id: '/api/analytics',
+  path: '/api/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -61,6 +67,7 @@ const ApiTrendRoute = ApiTrendRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/analytics': typeof ApiAnalyticsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/market': typeof ApiMarketRoute
@@ -71,6 +78,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/analytics': typeof ApiAnalyticsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/market': typeof ApiMarketRoute
@@ -82,6 +90,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/analytics': typeof ApiAnalyticsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/market': typeof ApiMarketRoute
@@ -94,6 +103,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/api/analytics'
     | '/api/health'
     | '/api/logo'
     | '/api/market'
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/api/analytics'
     | '/api/health'
     | '/api/logo'
     | '/api/market'
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/api/analytics'
     | '/api/health'
     | '/api/logo'
     | '/api/market'
@@ -125,6 +137,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiAnalyticsRoute: typeof ApiAnalyticsRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiLogoRoute: typeof ApiLogoRoute
   ApiMarketRoute: typeof ApiMarketRoute
@@ -141,6 +154,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/analytics': {
+      id: '/api/analytics'
+      path: '/api/analytics'
+      fullPath: '/api/analytics'
+      preLoaderRoute: typeof ApiAnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -197,6 +217,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiAnalyticsRoute: ApiAnalyticsRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiLogoRoute: ApiLogoRoute,
   ApiMarketRoute: ApiMarketRoute,

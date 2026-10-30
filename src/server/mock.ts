@@ -1,6 +1,7 @@
 import { buildState, kstIso } from "../lib/compute";
 import type {
 	ByCcy,
+	DatedClose,
 	HoldingsItem,
 	PortfolioState,
 	RawPortfolio,
@@ -96,6 +97,33 @@ export function createMockRaw(now = Date.now()): RawPortfolio {
 	};
 }
 
+export function mockHistory(
+	symbol: string,
+	last: number,
+	now = Date.now(),
+): DatedClose[] {
+	const seed = Array.from(symbol).reduce(
+		(hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0,
+		0,
+	);
+	const dates: string[] = [];
+	let time = Date.parse(`${kstIso(now).slice(0, 10)}T00:00:00Z`);
+	while (dates.length < 200) {
+		const day = new Date(time);
+		if (day.getUTCDay() !== 0 && day.getUTCDay() !== 6)
+			dates.unshift(day.toISOString().slice(0, 10));
+		time -= 86_400_000;
+	}
+	const level = (i: number) =>
+		(i * ((seed % 17) - 6)) / 8000 +
+		Math.sin(i / (3 + (seed % 5)) + (seed % 9)) * 0.035 +
+		Math.cos(i * 1.7 + (seed % 13)) * 0.008;
+	return dates.map((date, i) => ({
+		date,
+		close: Number((last * Math.exp(level(i) - level(199))).toFixed(4)),
+	}));
+}
+
 export function createMockTrend(now = Date.now()): TrendPoint[] {
 	const { totals, cash } = buildState(createMockRaw(now));
 	const purchases = [
@@ -103,17 +131,17 @@ export function createMockTrend(now = Date.now()): TrendPoint[] {
 		{ day: 30, amount: 5000000 },
 		{ day: 46, amount: 4000000 },
 	];
-	return Array.from({ length: 60 }, (_, index) => {
-		const ts = kstIso(now - (59 - index) * 86_400_000);
+	return Array.from({ length: 90 }, (_, index) => {
+		const ts = kstIso(now - (89 - index) * 86_400_000);
 		const purchaseKrw = purchases.reduce(
 			(principal, purchase) =>
 				principal - (index < purchase.day ? purchase.amount : 0),
 			totals.purchaseKrw,
 		);
 		const profitLossKrw =
-			index === 59
+			index === 89
 				? totals.stocksEvalKrw - totals.purchaseKrw
-				: totals.profitLossKrw * (0.5 + index / 118) +
+				: totals.profitLossKrw * (0.5 + index / 178) +
 					Math.sin(index / 5) * 180000;
 		const stocksEvalKrw = purchaseKrw + profitLossKrw;
 		return {
@@ -131,17 +159,22 @@ export function createMockTrend(now = Date.now()): TrendPoint[] {
 export function mockTicks(
 	state: PortfolioState,
 	now = Date.now(),
-	random = Math.random,
+	random?: () => number,
 ): Tick[] {
-	return state.holdings.map((row) => ({
+	return state.holdings.map((row, index) => ({
 		symbol: row.symbol,
 		market: row.market === "KR" ? "kr" : "us",
 		price: Math.max(
 			row.currency === "KRW" ? 1 : 0.01,
 			Number(
-				(row.lastPrice * (1 + (random() - 0.5) * 0.002)).toFixed(
-					row.currency === "KRW" ? 0 : 2,
-				),
+				(
+					row.lastPrice *
+					(1 +
+						((random?.() ??
+							(Math.sin(Math.floor(now / 1000) + index * 1.7) + 1) / 2) -
+							0.5) *
+							0.002)
+				).toFixed(row.currency === "KRW" ? 0 : 2),
 			),
 		),
 		timestamp: kstIso(now),

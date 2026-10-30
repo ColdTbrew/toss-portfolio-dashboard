@@ -16,21 +16,22 @@ it("generates repeatable mock ticks when a deterministic random source is suppli
 	);
 });
 
-it("uses Math.random by default for every mock holding", () => {
+it("uses repeatable time-based mock movement by default", () => {
 	const state = buildState(createMockRaw(NOW));
 	const random = vi.spyOn(Math, "random").mockReturnValue(0.75);
 	try {
-		expect(mockTicks(state, NOW)).toEqual(mockTicks(state, NOW, () => 0.75));
-		expect(random).toHaveBeenCalledTimes(state.holdings.length);
+		expect(mockTicks(state, NOW)).toEqual(mockTicks(state, NOW));
+		expect(mockTicks(state, NOW)).not.toEqual(mockTicks(state, NOW + 1000));
+		expect(random).not.toHaveBeenCalled();
 	} finally {
 		random.mockRestore();
 	}
 });
 
-it("provides 60 daily mock snapshots with three purchases and a current final valuation", () => {
+it("provides 90 daily mock snapshots with three purchases and a current final valuation", () => {
 	const state = buildState(createMockRaw(NOW));
 	const points = createMockTrend(NOW);
-	expect(points).toHaveLength(60);
+	expect(points).toHaveLength(90);
 	expect(points.at(-1)).toMatchObject({
 		date: kstIso(NOW).slice(0, 10),
 		purchaseKrw: state.totals.purchaseKrw,

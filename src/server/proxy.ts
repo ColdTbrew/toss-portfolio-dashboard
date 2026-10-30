@@ -1,4 +1,10 @@
-import type { HoldingRow, PortfolioState, Sparklines } from "../lib/types";
+import type {
+	AnalyticsData,
+	DatedClose,
+	HoldingRow,
+	PortfolioState,
+	Sparklines,
+} from "../lib/types";
 import { type Config, type Now, readConfig } from "./config";
 import { finiteNumber, record } from "./parse";
 
@@ -6,6 +12,7 @@ type JsonPath =
 	| "/api/portfolio"
 	| "/api/trend"
 	| "/api/health"
+	| "/api/analytics"
 	| "/api/sparklines";
 type LogoHolding = Pick<HoldingRow, "symbol" | "name">;
 const noStore = { "Cache-Control": "no-store" };
@@ -53,6 +60,55 @@ export function createProxy(options: {
 	}
 
 	return {
+		async getAnalytics(): Promise<AnalyticsData> {
+			const empty: AnalyticsData = {
+				fetchedAt: new Date(now()).toISOString(),
+				candles: {},
+				benchmarks: {},
+				usdkrw: [],
+			};
+			try {
+				const { data } = await readJson("/api/analytics");
+				const body = record(data);
+				const series = (value: unknown): DatedClose[] =>
+					Array.isArray(value)
+						? value
+								.flatMap((value) => {
+									const point = record(value);
+									return typeof point.date === "string" &&
+										/^\d{4}-\d{2}-\d{2}$/.test(point.date) &&
+										typeof point.close === "number" &&
+										Number.isFinite(point.close) &&
+										point.close > 0
+										? [{ date: point.date, close: point.close }]
+										: [];
+								})
+								.sort((a, b) => a.date.localeCompare(b.date))
+						: [];
+				const dictionary = (value: unknown) =>
+					Object.fromEntries(
+						Object.entries(record(value))
+							.map(([key, values]) => [key, series(values)])
+							.filter(([, values]) => values.length),
+					);
+				return {
+					fetchedAt:
+						typeof body.fetchedAt === "string" &&
+						Number.isFinite(Date.parse(body.fetchedAt))
+							? new Date(body.fetchedAt).toISOString()
+							: empty.fetchedAt,
+					candles: dictionary(body.candles),
+					benchmarks: Object.fromEntries(
+						Object.entries(dictionary(body.benchmarks)).filter(([key]) =>
+							["^KS11", "^GSPC", "^IXIC"].includes(key),
+						),
+					),
+					usdkrw: series(body.usdkrw),
+				};
+			} catch {
+				return empty;
+			}
+		},
 		async getSparklines(): Promise<Sparklines> {
 			try {
 				const { data } = await readJson("/api/sparklines");

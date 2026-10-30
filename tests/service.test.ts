@@ -233,7 +233,7 @@ describe("portfolio service", () => {
 		}
 	});
 
-	it("provides twelve obvious fake holdings, 60 trend days and one-second ticks with no network or file effects", async () => {
+	it("provides twelve obvious fake holdings, 90 trend days and one-second ticks with no network or file effects", async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(NOW);
 		const directory = await mkdtemp(join(tmpdir(), "toss-fake-mock-"));
@@ -261,7 +261,7 @@ describe("portfolio service", () => {
 			expect(
 				initial.holdings.filter((row) => row.market === "US"),
 			).toHaveLength(6);
-			expect(await service.getTrend()).toHaveLength(60);
+			expect(await service.getTrend()).toHaveLength(90);
 			await vi.advanceTimersByTimeAsync(1000);
 			expect(service.peek().holdings[0].lastPrice).toBeGreaterThan(
 				initial.holdings[0].lastPrice,

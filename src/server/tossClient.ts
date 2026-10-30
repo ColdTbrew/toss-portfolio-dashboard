@@ -1,12 +1,13 @@
 import type {
 	BuyingPower,
 	Currency,
+	DatedClose,
 	ExchangeRate,
 	HoldingsOverview,
 } from "../lib/types";
 import { type Now, readConfig, type Sleep, sleep } from "./config";
 import { ALLOWED_ENDPOINTS, TOSS_REST_BASE } from "./endpoints";
-import { finiteNumber, record } from "./parse";
+import { exchangeDate, finiteNumber, record } from "./parse";
 import { redact, summarizeHttpError } from "./redact";
 import { getTokenStore, type TokenStore } from "./tokenStore";
 
@@ -22,8 +23,35 @@ export interface TossClient {
 	getExchangeRate(): Promise<ExchangeRate>;
 	getCandles(
 		symbol: string,
-		options: { interval: "1d"; count: number },
-	): Promise<number[]>;
+		options: { interval: "1d"; count: number; market?: "KR" | "US" },
+	): Promise<DatedClose[]>;
+}
+
+export function parseDatedCandles(
+	result: unknown,
+	market: "KR" | "US",
+): DatedClose[] {
+	const candles = record(result).candles;
+	if (!Array.isArray(candles)) return [];
+	const points = new Map<string, number>();
+	for (const candle of candles) {
+		const row = record(candle);
+		const close = finiteNumber(row.closePrice) ?? finiteNumber(row.close);
+		const stamp = typeof row.timestamp === "string" ? row.timestamp : "";
+		// An explicit offset (Toss sends e.g. +09:00) already labels the bar's own
+		// calendar day; only UTC stamps are converted to the exchange-local date.
+		const date = /^\d{4}-\d{2}-\d{2}T[^Z]*[+-]\d{2}:?\d{2}$/.test(stamp)
+			? stamp.slice(0, 10)
+			: exchangeDate(
+					Date.parse(stamp),
+					market === "KR" ? "Asia/Seoul" : "America/New_York",
+				);
+		if (date && close !== null && close > 0 && !points.has(date))
+			points.set(date, close);
+	}
+	return [...points]
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([date, close]) => ({ date, close }));
 }
 
 export function parseCandleCloses(result: unknown): number[] {
@@ -157,13 +185,14 @@ export function createTossClient(options: {
 				baseCurrency: "USD",
 				quoteCurrency: "KRW",
 			}),
-		async getCandles(symbol, { interval, count }) {
-			return parseCandleCloses(
+		async getCandles(symbol, { interval, count, market }) {
+			return parseDatedCandles(
 				await get(ALLOWED_ENDPOINTS.candles, {
 					symbol,
 					interval,
 					count: String(count),
 				}),
+				market ?? (/^\d{6}$/.test(symbol) ? "KR" : "US"),
 			);
 		},
 	};

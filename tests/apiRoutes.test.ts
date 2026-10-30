@@ -6,6 +6,7 @@ import { GET as portfolio } from "../src/routes/api/portfolio";
 import { GET as sparklines } from "../src/routes/api/sparklines";
 import { GET as stream } from "../src/routes/api/stream";
 import { GET as trend } from "../src/routes/api/trend";
+import type { CandleCache } from "../src/server/candles";
 import type { LogoService } from "../src/server/logos";
 import type { MarketService } from "../src/server/market";
 import {
@@ -33,6 +34,7 @@ const globals = globalThis as typeof globalThis & {
 	__tossLogos?: LogoService;
 	__tossMarket?: MarketService;
 	__tossSparklines?: SparklineService;
+	__tossCandles?: CandleCache;
 };
 beforeEach(() => {
 	vi.useFakeTimers();
@@ -52,6 +54,7 @@ afterEach(async () => {
 	delete globals.__tossLogos;
 	delete globals.__tossMarket;
 	delete globals.__tossSparklines;
+	delete globals.__tossCandles;
 	vi.unstubAllEnvs();
 	vi.unstubAllGlobals();
 	vi.useRealTimers();
@@ -97,7 +100,7 @@ describe("server routes in mock mode", () => {
 		expect(data.mock).toBe(true);
 		expect(data.holdings).toHaveLength(12);
 		expect(data).toEqual(getPortfolioService().peek());
-		expect(await (await trend()).json()).toHaveLength(60);
+		expect(await (await trend()).json()).toHaveLength(90);
 		expect(await (await health()).json()).toEqual({
 			ok: true,
 			mock: true,

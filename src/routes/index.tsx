@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { AllocationChart } from "../components/AllocationChart";
+import { AnalyticsSection } from "../components/AnalyticsSection";
 import { HoldingsTable } from "../components/HoldingsTable";
 import { LiveBadge, type LiveStatus } from "../components/LiveBadge";
 import { MarketStrip } from "../components/MarketStrip";
@@ -222,6 +223,7 @@ function Dashboard() {
 				</div>
 				<TrendChart points={trend} />
 				<PrincipalChart totals={state.totals} points={trend} />
+				<AnalyticsSection state={state} points={trend} />
 				<HoldingsTable state={state} />
 				<footer className="site-footer">
 					<span>
