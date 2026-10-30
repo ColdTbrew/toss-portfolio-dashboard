@@ -10,33 +10,128 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiLogoRouteImport } from './routes/api/logo'
+import { Route as ApiMarketRouteImport } from './routes/api/market'
+import { Route as ApiPortfolioRouteImport } from './routes/api/portfolio'
+import { Route as ApiSparklinesRouteImport } from './routes/api/sparklines'
+import { Route as ApiStreamRouteImport } from './routes/api/stream'
+import { Route as ApiTrendRouteImport } from './routes/api/trend'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLogoRoute = ApiLogoRouteImport.update({
+  id: '/api/logo',
+  path: '/api/logo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMarketRoute = ApiMarketRouteImport.update({
+  id: '/api/market',
+  path: '/api/market',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPortfolioRoute = ApiPortfolioRouteImport.update({
+  id: '/api/portfolio',
+  path: '/api/portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSparklinesRoute = ApiSparklinesRouteImport.update({
+  id: '/api/sparklines',
+  path: '/api/sparklines',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStreamRoute = ApiStreamRouteImport.update({
+  id: '/api/stream',
+  path: '/api/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTrendRoute = ApiTrendRouteImport.update({
+  id: '/api/trend',
+  path: '/api/trend',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/logo': typeof ApiLogoRoute
+  '/api/market': typeof ApiMarketRoute
+  '/api/portfolio': typeof ApiPortfolioRoute
+  '/api/sparklines': typeof ApiSparklinesRoute
+  '/api/stream': typeof ApiStreamRoute
+  '/api/trend': typeof ApiTrendRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/logo': typeof ApiLogoRoute
+  '/api/market': typeof ApiMarketRoute
+  '/api/portfolio': typeof ApiPortfolioRoute
+  '/api/sparklines': typeof ApiSparklinesRoute
+  '/api/stream': typeof ApiStreamRoute
+  '/api/trend': typeof ApiTrendRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/logo': typeof ApiLogoRoute
+  '/api/market': typeof ApiMarketRoute
+  '/api/portfolio': typeof ApiPortfolioRoute
+  '/api/sparklines': typeof ApiSparklinesRoute
+  '/api/stream': typeof ApiStreamRoute
+  '/api/trend': typeof ApiTrendRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/health'
+    | '/api/logo'
+    | '/api/market'
+    | '/api/portfolio'
+    | '/api/sparklines'
+    | '/api/stream'
+    | '/api/trend'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/health'
+    | '/api/logo'
+    | '/api/market'
+    | '/api/portfolio'
+    | '/api/sparklines'
+    | '/api/stream'
+    | '/api/trend'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/health'
+    | '/api/logo'
+    | '/api/market'
+    | '/api/portfolio'
+    | '/api/sparklines'
+    | '/api/stream'
+    | '/api/trend'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiLogoRoute: typeof ApiLogoRoute
+  ApiMarketRoute: typeof ApiMarketRoute
+  ApiPortfolioRoute: typeof ApiPortfolioRoute
+  ApiSparklinesRoute: typeof ApiSparklinesRoute
+  ApiStreamRoute: typeof ApiStreamRoute
+  ApiTrendRoute: typeof ApiTrendRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +143,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/logo': {
+      id: '/api/logo'
+      path: '/api/logo'
+      fullPath: '/api/logo'
+      preLoaderRoute: typeof ApiLogoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/market': {
+      id: '/api/market'
+      path: '/api/market'
+      fullPath: '/api/market'
+      preLoaderRoute: typeof ApiMarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/portfolio': {
+      id: '/api/portfolio'
+      path: '/api/portfolio'
+      fullPath: '/api/portfolio'
+      preLoaderRoute: typeof ApiPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sparklines': {
+      id: '/api/sparklines'
+      path: '/api/sparklines'
+      fullPath: '/api/sparklines'
+      preLoaderRoute: typeof ApiSparklinesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stream': {
+      id: '/api/stream'
+      path: '/api/stream'
+      fullPath: '/api/stream'
+      preLoaderRoute: typeof ApiStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/trend': {
+      id: '/api/trend'
+      path: '/api/trend'
+      fullPath: '/api/trend'
+      preLoaderRoute: typeof ApiTrendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiLogoRoute: ApiLogoRoute,
+  ApiMarketRoute: ApiMarketRoute,
+  ApiPortfolioRoute: ApiPortfolioRoute,
+  ApiSparklinesRoute: ApiSparklinesRoute,
+  ApiStreamRoute: ApiStreamRoute,
+  ApiTrendRoute: ApiTrendRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

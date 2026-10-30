@@ -1,0 +1,41 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      TOSS_MOCK: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check tracked files for private hosts
+        run: ./scripts/check-private-hosts.sh
+      - name: Scan full history with verified gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=8.30.1
+          archive="gitleaks_${version}_linux_x64.tar.gz"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive" "https://github.com/gitleaks/gitleaks/releases/download/v${version}/$archive"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/$archive" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --redact --config .gitleaks.toml --log-opts="--all" .
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx --no-install biome check src tests
+      - run: npm run build
+      - name: Verify client bundle isolation
+        shell: bash
+        run: |
+          if rg -l '[/~]invest/|TOSS_(ENV|TOKEN|ACCOUNT)_PATH|PORTFOLIO_LEDGER_PATH|openapi(-ws)?\.tossinvest\.com|createPortfolioService|createTokenStore|src/server/|TanStackDevtools|TanStackRouterDevtools' .output/public; then
+            echo 'Server-only code, private paths, or devtools found in public assets' >&2
+            exit 1
+          fi
