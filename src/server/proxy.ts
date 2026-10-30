@@ -1,3 +1,4 @@
+import { parseTargetsData, type TargetsData } from "../lib/targets";
 import type {
 	AnalyticsData,
 	DatedClose,
@@ -9,6 +10,7 @@ import { type Config, type Now, readConfig } from "./config";
 import { finiteNumber, record } from "./parse";
 
 type JsonPath =
+	| "/api/targets"
 	| "/api/portfolio"
 	| "/api/trend"
 	| "/api/health"
@@ -60,6 +62,14 @@ export function createProxy(options: {
 	}
 
 	return {
+		async getTargets(): Promise<TargetsData> {
+			try {
+				const { data } = await readJson("/api/targets");
+				return { ...parseTargetsData(data), editable: false };
+			} catch {
+				return { targets: {}, updatedAt: null, editable: false };
+			}
+		},
 		async getAnalytics(): Promise<AnalyticsData> {
 			const empty: AnalyticsData = {
 				fetchedAt: new Date(now()).toISOString(),

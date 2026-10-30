@@ -21,6 +21,7 @@ todos.json
 *.sqlite*
 .token*
 account.json
+targets.json
 *.pem
 last_raw.json
 portfolio*.json*

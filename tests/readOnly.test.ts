@@ -19,6 +19,11 @@ async function files(directory: string): Promise<string[]> {
 it("restricts all source paths, HTTP mutations and WS subscription types", async () => {
 	const paths = new Set(Object.values(ALLOWED_ENDPOINTS));
 	const found = new Set<string>();
+	const targetsFiles = [
+		"src/lib/targetsClient.ts",
+		"src/routes/api/targets.ts",
+		"src/server/targets.ts",
+	];
 	const forbidden = [
 		"orders",
 		"conditional",
@@ -29,13 +34,22 @@ it("restricts all source paths, HTTP mutations and WS subscription types", async
 	];
 	for (const file of await files("src")) {
 		const source = await readFile(file, "utf8");
+		if (targetsFiles.includes(file)) {
+			expect(source, file).not.toMatch(
+				/TOSS_REST_BASE|tossinvest|ALLOWED_ENDPOINTS/,
+			);
+		}
 		for (const match of source.matchAll(/\/api\/v1\/[A-Za-z0-9_/-]+/g)) {
 			expect([...paths], file).toContain(match[0]);
 			found.add(match[0]);
 			for (const word of forbidden) expect(match[0], file).not.toContain(word);
 		}
 		for (const match of source.matchAll(/method\s*:\s*["']([^"']+)["']/g)) {
-			expect(["GET", "POST"], file).toContain(match[1]);
+			expect(
+				targetsFiles.includes(file) ? ["GET", "POST", "PUT"] : ["GET", "POST"],
+				file,
+			).toContain(match[1]);
+			if (match[1] === "PUT") expect(targetsFiles).toContain(file);
 			if (match[1] === "POST") {
 				expect(file).toBe("src/server/tokenStore.ts");
 				expect(source).toContain("ALLOWED_ENDPOINTS.token");

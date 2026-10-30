@@ -1,4 +1,5 @@
 import { buildState, kstIso } from "../lib/compute";
+import type { TargetsDocument } from "../lib/targets";
 import type {
 	ByCcy,
 	DatedClose,
@@ -8,6 +9,21 @@ import type {
 	Tick,
 	TrendPoint,
 } from "../lib/types";
+
+export function createMockTargets(): TargetsDocument {
+	const updatedAt = "2000-01-01T00:00:00.000Z";
+	const holdings = createMockRaw(Date.parse(updatedAt)).holdings?.items ?? [];
+	return {
+		version: 1,
+		updatedAt,
+		targets: {
+			...Object.fromEntries(
+				holdings.map((row, i) => [row.symbol, i === 11 ? 7 : 8]),
+			),
+			CASH: 5,
+		},
+	};
+}
 
 export function createMockRaw(now = Date.now()): RawPortfolio {
 	const items: HoldingsItem[] = Array.from({ length: 12 }, (_, i) => {

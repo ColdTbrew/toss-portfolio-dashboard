@@ -1,12 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 export interface Config {
 	envPath: string;
 	tokenPath: string;
 	accountPath: string;
 	ledgerPath: string;
+	targetsPath: string;
 	mock: boolean;
 	proxy: { upstream: URL } | null;
 	snapshotEnabled: boolean;
@@ -59,11 +60,17 @@ export function readConfig(
 		}
 		if (mock) throw new Error("TOSS_MOCK and UPSTREAM_URL are incompatible");
 	}
+	const ledgerPath = path(
+		env.PORTFOLIO_LEDGER_PATH ?? "~/invest/portfolio.jsonl",
+	);
 	return {
 		envPath: path(env.TOSS_ENV_PATH ?? "~/invest/.toss.env"),
 		tokenPath: path(env.TOSS_TOKEN_PATH ?? "~/invest/.token.json"),
 		accountPath: path(env.TOSS_ACCOUNT_PATH ?? "~/invest/account.json"),
-		ledgerPath: path(env.PORTFOLIO_LEDGER_PATH ?? "~/invest/portfolio.jsonl"),
+		ledgerPath,
+		targetsPath: path(
+			env.TARGET_WEIGHTS_PATH ?? join(dirname(ledgerPath), "targets.json"),
+		),
 		mock,
 		proxy,
 		snapshotEnabled: !mock && !proxy && env.SNAPSHOT_ENABLED !== "0",
