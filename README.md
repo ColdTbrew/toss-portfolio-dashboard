@@ -49,7 +49,7 @@ npm run dev:mock
 
 서버 환경의 `TOSS_CLIENT_ID`, `TOSS_CLIENT_SECRET`도 지원하지만, 배포 예제에는 HOST 자리표시자와 경로만 둡니다. 실제 주소·인증 값을 클라이언트용 환경 변수로 넣거나 레포·로그·스크린샷에 남기지 마세요.
 
-모든 실행 모드에서 요청의 `Host`가 `HOST`, localhost 형태(`localhost`, `127.0.0.1`, `[::1]`) 또는 `ALLOWED_HOSTS`에 없으면 라우트 실행 전에 `421 Misdirected Request`를 반환합니다. 호스트명은 대소문자를 구분하지 않고 포트는 검사하지 않으며, 끝의 점은 제거하지 않습니다. `X-Forwarded-Host`와 `Forwarded`는 신뢰하지 않습니다. `<tailscale-host>` 같은 호스트명으로 접속하려면 레포 밖의 `~/.config/toss-dashboard.env`에 `ALLOWED_HOSTS=<tailscale-host>`를 추가하세요.
+빌드된 서버를 `node .output/server/index.mjs`로 실행할 때(프로덕션 및 mock 데모 포함), 요청의 `Host`가 `NITRO_HOST`, `HOST`, localhost 형태(`localhost`, `127.0.0.1`, `[::1]`) 또는 `ALLOWED_HOSTS`에 없으면 라우트 실행 전에 `421 Misdirected Request`를 반환합니다. 호스트명은 대소문자를 구분하지 않고 포트는 검사하지 않으며, 끝의 점은 제거하지 않습니다. `X-Forwarded-Host`와 `Forwarded`는 신뢰하지 않습니다. `<tailscale-host>` 같은 호스트명으로 접속하려면 레포 밖의 `~/.config/toss-dashboard.env`에 `ALLOWED_HOSTS=<tailscale-host>`를 추가하세요. `vite dev`와 `vite preview`는 Vite 자체 호스트 검사(`server.allowedHosts`)를 사용하며 `ALLOWED_HOSTS`는 적용되지 않습니다.
 
 ## Proxy preview
 
@@ -58,6 +58,8 @@ npm run dev:mock
 ```bash
 UPSTREAM_URL='http://<upstream-host>:8790' HOST='<tailscale-ip>' PORT=8791 node .output/server/index.mjs
 ```
+
+`UPSTREAM_URL`에 upstream의 바인드 IP 대신 호스트명을 사용하면, upstream 인스턴스의 `ALLOWED_HOSTS`에 해당 호스트명(`<upstream-host>`)을 추가하세요.
 
 `UPSTREAM_URL`은 경로·쿼리·fragment·사용자 인증 정보가 없는 HTTP(S) 원점이어야 하며 `TOSS_MOCK=1`과 함께 사용할 수 없습니다. 포트폴리오·추이·SSE는 기존 인스턴스에서 전달하며, preview는 토큰·계좌·환경·장부 파일이나 토스 REST/WebSocket을 사용하지 않고 스냅샷도 기록하지 않습니다. `/api/health`는 `proxy`, `mock`, `upstreamReachable`을 반환하며 원본 주소를 노출하지 않습니다.
 

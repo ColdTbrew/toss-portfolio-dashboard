@@ -9,21 +9,24 @@ function hostname(raw: string | null | undefined): string | undefined {
 	const name = match[1].toLowerCase();
 	if (!name.startsWith("[")) return name;
 	const address = name.slice(1, -1);
-	return isIP(address) === 6 ? address : undefined;
+	if (isIP(address) !== 6) return;
+	return new URL(`http://[${address}]`).hostname.slice(1, -1);
 }
 
 export function buildHostAllowlist(env: {
+	NITRO_HOST?: string;
 	HOST?: string;
 	ALLOWED_HOSTS?: string;
 }): ReadonlySet<string> {
 	const allowed = new Set(["localhost", "127.0.0.1", "::1"]);
 	for (const entry of [
+		env.NITRO_HOST ?? "",
 		env.HOST ?? "",
 		...(env.ALLOWED_HOSTS ?? "").split(","),
 	]) {
 		const value = entry.trim().toLowerCase();
 		// Bind addresses can be bare IPv6; HTTP Host headers must use brackets.
-		const name = isIP(value) === 6 ? value : hostname(value);
+		const name = hostname(isIP(value) === 6 ? `[${value}]` : value);
 		if (name) allowed.add(name);
 	}
 	return allowed;

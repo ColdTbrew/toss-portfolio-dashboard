@@ -14,6 +14,22 @@ it("compares configured names case-insensitively", () => {
 	expect(isHostAllowed("EXAMPLE.invalid:8790", allowed)).toBe(true);
 });
 
+it("allows NITRO_HOST while retaining HOST and loopback defaults", () => {
+	const allowed = buildHostAllowlist({
+		NITRO_HOST: "nitro.example.invalid",
+		HOST: "bind.example.invalid",
+	});
+	for (const host of [
+		"nitro.example.invalid:8790",
+		"bind.example.invalid:8790",
+		"localhost",
+		"127.0.0.1",
+		"[::1]",
+	]) {
+		expect(isHostAllowed(host, allowed)).toBe(true);
+	}
+});
+
 it.each([
 	"localhost",
 	"LOCALHOST:8790",
@@ -21,6 +37,7 @@ it.each([
 	"127.0.0.1:8790",
 	"[::1]",
 	"[::1]:8790",
+	"[0:0:0:0:0:0:0:1]:8790",
 ])("always allows loopback Host %s", (host) => {
 	expect(isHostAllowed(host, buildHostAllowlist({}))).toBe(true);
 });
@@ -50,6 +67,19 @@ it.each([
 	expect(isHostAllowed("[2001:DB8::A]:8790", allowed)).toBe(true);
 	expect(isHostAllowed("[2001:db8::a]", allowed)).toBe(true);
 	expect(isHostAllowed("2001:db8::a", allowed)).toBe(false);
+});
+
+it.each([
+	["2001:db8:0:0:0:0:0:a", "[2001:db8::a]:8790"],
+	["2001:db8::a", "[2001:db8:0:0:0:0:0:a]:8790"],
+	["[2001:db8:0:0:0:0:0:a]", "[2001:db8::a]:8790"],
+	["[2001:db8::a]", "[2001:db8:0:0:0:0:0:a]:8790"],
+])("matches equivalent IPv6 literals %s and %s", (configured, received) => {
+	for (const key of ["HOST", "NITRO_HOST", "ALLOWED_HOSTS"]) {
+		const allowed = buildHostAllowlist({ [key]: configured });
+		expect(isHostAllowed(received, allowed)).toBe(true);
+		expect(isHostAllowed("[::1]", allowed)).toBe(true);
+	}
 });
 
 it.each([
