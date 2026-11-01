@@ -14,6 +14,7 @@ const config = defineConfig(({ command }) => ({
 		nitro({
 			plugins: [
 				"./src/server/plugins/bindHost.ts",
+				"./src/server/plugins/hostAllowlist.ts",
 				"./src/server/plugins/shutdown.ts",
 			],
 			rollupConfig: { external: [/^@sentry\//] },
