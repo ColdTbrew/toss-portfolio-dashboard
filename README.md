@@ -44,9 +44,12 @@ npm run dev:mock
 | `REFRESH_HOLDINGS_SEC` | `30` | 보유종목 갱신 주기 |
 | `REFRESH_CASH_FX_SEC` | `60` | 현금·환율 갱신 주기 |
 | `HOST` | 기본값 없음 (프로덕션 필수) | 레포 밖의 `~/.config/toss-dashboard.env`에 Tailscale IP 지정 |
+| `ALLOWED_HOSTS` | 미설정 | 접속을 허용할 추가 호스트명; 쉼표로 구분 |
 | `PORT` | 배포 유닛에서 `8790` 지정 | HTTP 수신 포트 |
 
 서버 환경의 `TOSS_CLIENT_ID`, `TOSS_CLIENT_SECRET`도 지원하지만, 배포 예제에는 HOST 자리표시자와 경로만 둡니다. 실제 주소·인증 값을 클라이언트용 환경 변수로 넣거나 레포·로그·스크린샷에 남기지 마세요.
+
+모든 실행 모드에서 요청의 `Host`가 `HOST`, localhost 형태(`localhost`, `127.0.0.1`, `[::1]`) 또는 `ALLOWED_HOSTS`에 없으면 라우트 실행 전에 `421 Misdirected Request`를 반환합니다. 호스트명은 대소문자를 구분하지 않고 포트는 검사하지 않으며, 끝의 점은 제거하지 않습니다. `X-Forwarded-Host`와 `Forwarded`는 신뢰하지 않습니다. `<tailscale-host>` 같은 호스트명으로 접속하려면 레포 밖의 `~/.config/toss-dashboard.env`에 `ALLOWED_HOSTS=<tailscale-host>`를 추가하세요.
 
 ## Proxy preview
 
