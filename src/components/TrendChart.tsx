@@ -62,55 +62,62 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
 				</fieldset>
 			</div>
 			{data.length >= 2 ? (
-				<ResponsiveContainer width="100%" height={240}>
-					<LineChart
-						key={mode}
-						data={data}
-						margin={{ top: 16, right: 16, left: 18, bottom: 4 }}
-						accessibilityLayer
-					>
-						<CartesianGrid
-							stroke="var(--border)"
-							vertical={false}
-							strokeDasharray="3 5"
-						/>
-						<XAxis
-							dataKey="date"
-							tickFormatter={(date) => String(date).slice(5).replace("-", ".")}
-							minTickGap={36}
-							tick={{ fontSize: 11, fill: "var(--muted)" }}
-							axisLine={false}
-							tickLine={false}
-						/>
-						<YAxis
-							domain={["auto", "auto"]}
-							width={mode === "assets" ? 96 : 65}
-							tickFormatter={format}
-							tick={{ fontSize: 11, fill: "var(--muted)" }}
-							axisLine={false}
-							tickLine={false}
-						/>
-						<Tooltip
-							formatter={(value) => format(Number(value))}
-							contentStyle={{
-								background: "var(--surface)",
-								border: "1px solid var(--border)",
-								borderRadius: 12,
-								color: "var(--text)",
-							}}
-						/>
-						<Line
-							type="monotone"
-							dataKey="value"
-							name={mode === "rate" ? "수익률" : "총자산"}
-							stroke="var(--accent)"
-							strokeWidth={2.5}
-							dot={false}
-							activeDot={{ r: 5, strokeWidth: 3, stroke: "var(--surface)" }}
-							isAnimationActive={false}
-						/>
-					</LineChart>
-				</ResponsiveContainer>
+				<div className="chart-frame">
+					<ResponsiveContainer width="100%" height="100%">
+						<LineChart
+							key={mode}
+							data={data}
+							margin={{ top: 16, right: 16, left: 18, bottom: 4 }}
+							accessibilityLayer
+						>
+							<CartesianGrid
+								stroke="var(--chart-grid)"
+								vertical={false}
+								strokeDasharray="3 5"
+							/>
+							<XAxis
+								dataKey="date"
+								tickFormatter={(date) =>
+									String(date).slice(5).replace("-", ".")
+								}
+								minTickGap={36}
+								tick={{ fontSize: 12, fill: "var(--muted)" }}
+								axisLine={false}
+								tickLine={false}
+							/>
+							<YAxis
+								tickCount={4}
+								domain={["auto", "auto"]}
+								width={mode === "assets" ? 96 : 65}
+								tickFormatter={format}
+								tick={{ fontSize: 12, fill: "var(--muted)" }}
+								axisLine={false}
+								tickLine={false}
+							/>
+							<Tooltip
+								itemStyle={{ color: "var(--text)" }}
+								labelStyle={{ color: "var(--muted)" }}
+								formatter={(value) => format(Number(value))}
+								contentStyle={{
+									background: "var(--surface)",
+									border: "1px solid var(--border)",
+									borderRadius: 12,
+									color: "var(--text)",
+								}}
+							/>
+							<Line
+								type="linear"
+								dataKey="value"
+								name={mode === "rate" ? "수익률" : "총자산"}
+								stroke="var(--accent)"
+								strokeWidth={2.5}
+								dot={false}
+								activeDot={{ r: 5, strokeWidth: 3, stroke: "var(--surface)" }}
+								isAnimationActive={false}
+							/>
+						</LineChart>
+					</ResponsiveContainer>
+				</div>
 			) : (
 				<p className="empty-state">
 					{!latest && "아직 일별 기록이 없습니다. "}

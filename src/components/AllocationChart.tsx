@@ -6,7 +6,10 @@ import type { PortfolioState } from "../lib/types";
 export function AllocationChart({ state }: { state: PortfolioState }) {
 	const data = allocationSlices(state);
 	return (
-		<section className="panel" aria-labelledby="allocation-heading">
+		<section
+			className="panel allocation-panel"
+			aria-labelledby="allocation-heading"
+		>
 			<div className="panel-heading">
 				<div>
 					<p className="eyebrow">ALLOCATION</p>
@@ -17,14 +20,14 @@ export function AllocationChart({ state }: { state: PortfolioState }) {
 			{data.length ? (
 				<div className="allocation-content">
 					<div className="donut-wrap">
-						<ResponsiveContainer width="100%" height={240}>
+						<ResponsiveContainer width="100%" height="100%">
 							<PieChart accessibilityLayer>
 								<Pie
 									data={data}
 									dataKey="weight"
 									nameKey="name"
-									innerRadius={72}
-									outerRadius={101}
+									innerRadius="60%"
+									outerRadius="84%"
 									paddingAngle={3}
 									stroke="none"
 									isAnimationActive={false}
@@ -34,6 +37,8 @@ export function AllocationChart({ state }: { state: PortfolioState }) {
 									))}
 								</Pie>
 								<Tooltip
+									itemStyle={{ color: "var(--text)" }}
+									labelStyle={{ color: "var(--muted)" }}
 									formatter={(value) => formatPercent(Number(value))}
 									contentStyle={{
 										background: "var(--surface)",

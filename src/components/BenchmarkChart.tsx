@@ -75,60 +75,63 @@ export function BenchmarkChart({
 								</span>
 							))}
 						</div>
-						<ResponsiveContainer width="100%" height={300}>
-							<LineChart
-								data={series}
-								margin={{ top: 16, right: 12, left: 0, bottom: 4 }}
-								accessibilityLayer
-							>
-								<CartesianGrid
-									stroke="var(--border)"
-									vertical={false}
-									strokeDasharray="3 5"
-								/>
-								<XAxis
-									dataKey="date"
-									tickFormatter={(date) =>
-										String(date).slice(5).replace("-", ".")
-									}
-									minTickGap={36}
-									tick={{ fontSize: 11, fill: "var(--muted)" }}
-									axisLine={false}
-									tickLine={false}
-								/>
-								<YAxis
-									width={62}
-									tickFormatter={(value) =>
-										`${(Number(value) * 100).toFixed(1)}%`
-									}
-									tick={{ fontSize: 11, fill: "var(--muted)" }}
-									axisLine={false}
-									tickLine={false}
-								/>
-								<Tooltip
-									formatter={(value) => formatPercent(Number(value), true)}
-									contentStyle={{
-										background: "var(--surface)",
-										border: "1px solid var(--border)",
-										borderRadius: 12,
-										color: "var(--text)",
-										fontSize: 12,
-									}}
-								/>
-								{visible.map((line) => (
-									<Line
-										key={line.key}
-										dataKey={line.key}
-										name={line.name}
-										stroke={line.color}
-										strokeDasharray={line.dash}
-										strokeWidth={line.key === "portfolio" ? 2.5 : 1.5}
-										dot={false}
-										isAnimationActive={false}
+						<div className="chart-frame">
+							<ResponsiveContainer width="100%" height="100%">
+								<LineChart
+									data={series}
+									margin={{ top: 16, right: 12, left: 0, bottom: 4 }}
+									accessibilityLayer
+								>
+									<CartesianGrid
+										stroke="var(--chart-grid)"
+										vertical={false}
+										strokeDasharray="3 5"
 									/>
-								))}
-							</LineChart>
-						</ResponsiveContainer>
+									<XAxis
+										dataKey="date"
+										tickFormatter={(date) =>
+											String(date).slice(5).replace("-", ".")
+										}
+										minTickGap={36}
+										tick={{ fontSize: 12, fill: "var(--muted)" }}
+										axisLine={false}
+										tickLine={false}
+									/>
+									<YAxis
+										tickCount={4}
+										width={62}
+										tickFormatter={(value) =>
+											`${(Number(value) * 100).toFixed(1)}%`
+										}
+										tick={{ fontSize: 12, fill: "var(--muted)" }}
+										axisLine={false}
+										tickLine={false}
+									/>
+									<Tooltip
+										formatter={(value) => formatPercent(Number(value), true)}
+										contentStyle={{
+											background: "var(--surface)",
+											border: "1px solid var(--border)",
+											borderRadius: 12,
+											color: "var(--text)",
+											fontSize: 12,
+										}}
+									/>
+									{visible.map((line) => (
+										<Line
+											key={line.key}
+											dataKey={line.key}
+											name={line.name}
+											stroke={line.color}
+											strokeDasharray={line.dash}
+											strokeWidth={line.key === "portfolio" ? 2.5 : 1.5}
+											dot={false}
+											isAnimationActive={false}
+										/>
+									))}
+								</LineChart>
+							</ResponsiveContainer>
+						</div>
 					</>
 				)}
 			</div>

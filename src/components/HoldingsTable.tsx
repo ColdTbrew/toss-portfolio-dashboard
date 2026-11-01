@@ -19,13 +19,13 @@ type SortKey =
 	| "weight";
 const columns: [SortKey, string][] = [
 	["name", "종목"],
+	["evalKrw", "평가금액 (원)"],
+	["returnRate", "수익률"],
+	["dailyPl", "오늘 손익"],
 	["quantity", "수량"],
 	["avgPrice", "평균가"],
 	["lastPrice", "현재가"],
-	["evalKrw", "평가금액 (원)"],
 	["profitLoss", "손익"],
-	["returnRate", "수익률"],
-	["dailyPl", "오늘 손익"],
 	["weight", "비중"],
 ];
 
@@ -130,7 +130,12 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 					))}
 				</fieldset>
 			</div>
-			<div className="table-scroll">
+			<section
+				className="table-scroll"
+				aria-label="보유종목 표"
+				// biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard focus enables scrolling all columns.
+				tabIndex={0}
+			>
 				<table>
 					<thead>
 						<tr>
@@ -174,17 +179,10 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 											<small>
 												{row.symbol} · {row.market === "KR" ? "국내" : "미국"}
 											</small>
-											<Sparkline closes={sparklines?.[row.symbol]} />
 										</div>
+										<Sparkline closes={sparklines?.[row.symbol]} />
 									</div>
 								</td>
-								<td>
-									<Amount value={row.quantity} quantity />
-								</td>
-								<td>
-									<Amount value={row.avgPrice} currency={row.currency} />
-								</td>
-								<PriceCell row={row} fx={state.fx?.midRate} />
 								<td>
 									<Amount value={row.evalKrw} />
 									{row.currency === "USD" && (
@@ -192,13 +190,6 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 											<Amount value={row.evalAmount} currency="USD" />
 										</small>
 									)}
-								</td>
-								<td className={pnlClass(row.profitLoss)}>
-									<Amount
-										value={row.profitLoss}
-										currency={row.currency}
-										signed
-									/>
 								</td>
 								<td className={pnlClass(row.returnRate)}>
 									{formatPercent(row.returnRate, true)}
@@ -212,6 +203,20 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 										)}
 									</small>
 								</td>
+								<td>
+									<Amount value={row.quantity} quantity />
+								</td>
+								<td>
+									<Amount value={row.avgPrice} currency={row.currency} />
+								</td>
+								<PriceCell row={row} fx={state.fx?.midRate} />
+								<td className={pnlClass(row.profitLoss)}>
+									<Amount
+										value={row.profitLoss}
+										currency={row.currency}
+										signed
+									/>
+								</td>
 								<td>{formatPercent(row.weight)}</td>
 							</tr>
 						))}
@@ -220,7 +225,7 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 				{!rows.length && (
 					<p className="empty-state">보유 중인 종목이 없습니다.</p>
 				)}
-			</div>
+			</section>
 		</section>
 	);
 }

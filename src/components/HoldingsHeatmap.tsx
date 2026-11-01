@@ -99,7 +99,7 @@ export function HoldingsHeatmap({
 												x={x + 8}
 												y={y + height / 2 - (height >= 76 ? 10 : 2)}
 												fill="var(--text)"
-												fontSize={11}
+												fontSize={12}
 											>
 												<tspan>
 													{name.length > maxLength
