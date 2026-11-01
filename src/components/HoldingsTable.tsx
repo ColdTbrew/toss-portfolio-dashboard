@@ -130,6 +130,34 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 					))}
 				</fieldset>
 			</div>
+			<div className="holdings-mobile-tools">
+				<label>
+					<span>정렬</span>
+					<select
+						aria-label="보유종목 정렬 기준"
+						value={sort.key}
+						onChange={(event) => {
+							const key = event.target.value as SortKey;
+							setSort({ key, asc: key === "name" });
+						}}
+					>
+						{columns.map(([key, label]) => (
+							<option key={key} value={key}>
+								{label}
+							</option>
+						))}
+					</select>
+				</label>
+				<button
+					type="button"
+					className="button sort-direction"
+					aria-label={`정렬 방향: ${sort.asc ? "오름차순" : "내림차순"}`}
+					onClick={() => setSort({ ...sort, asc: !sort.asc })}
+				>
+					<span aria-hidden="true">{sort.asc ? "↑" : "↓"}</span>
+					{sort.asc ? "오름차순" : "내림차순"}
+				</button>
+			</div>
 			<section
 				className="table-scroll"
 				aria-label="보유종목 표"
@@ -137,6 +165,11 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 				tabIndex={0}
 			>
 				<table>
+					<colgroup>
+						{columns.map(([key]) => (
+							<col key={key} className={`col-${key}`} />
+						))}
+					</colgroup>
 					<thead>
 						<tr>
 							{columns.map(([key, label]) => (
@@ -175,12 +208,38 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 									<div className="stock-name">
 										<StockLogo row={row} />
 										<div>
-											<strong>{row.name}</strong>
+											<strong title={row.name}>{row.name}</strong>
 											<small>
 												{row.symbol} · {row.market === "KR" ? "국내" : "미국"}
 											</small>
 										</div>
 										<Sparkline closes={sparklines?.[row.symbol]} />
+									</div>
+									<div className="mobile-holding-details">
+										<span>
+											<small>수량</small>
+											<Amount value={row.quantity} quantity />
+										</span>
+										<span>
+											<small>평균가</small>
+											<Amount value={row.avgPrice} currency={row.currency} />
+										</span>
+										<span>
+											<small>현재가</small>
+											<Amount value={row.lastPrice} currency={row.currency} />
+										</span>
+										<span className={pnlClass(row.profitLoss)}>
+											<small>손익</small>
+											<Amount
+												value={row.profitLoss}
+												currency={row.currency}
+												signed
+											/>
+										</span>
+										<span>
+											<small>비중</small>
+											{formatPercent(row.weight)}
+										</span>
 									</div>
 								</td>
 								<td>
@@ -191,10 +250,10 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 										</small>
 									)}
 								</td>
-								<td className={pnlClass(row.returnRate)}>
+								<td className={pnlClass(row.returnRate)} data-label="수익률">
 									{formatPercent(row.returnRate, true)}
 								</td>
-								<td className={pnlClass(row.dailyPl)}>
+								<td className={pnlClass(row.dailyPl)} data-label="오늘 손익">
 									<Amount value={row.dailyPl} currency={row.currency} signed />
 									<small>
 										{formatPercent(
