@@ -5,20 +5,28 @@
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
   color-scheme: light;
-  --bg: #f5f7fb;
+  --bg: #f2f4f6;
   --surface: #ffffff;
-  --text: #172337;
-  --muted: #68758a;
-  --chart-grid: #e1e6ef;
+  --text: #191f28;
+  --muted: #4e5968;
+  --chart-grid: #e5e8eb;
   --gap: 16px;
   --panel-pad: 16px;
   --chart-height: 220px;
-  --border: #e9edf4;
-  --hover: #f1f4fa;
-  --accent: #6265e8;
-  --profit: #e34e59;
-  --loss: #347ce4;
-  --shadow: 0 3px 16px #263b5d04;
+  --border: #e5e8eb;
+  --hover: #f2f4f6;
+  --accent: #1b64da;
+  --accent-hover: #1957c2;
+  --focus: #1b64da;
+  --profit: #d22030;
+  --loss: #194aa6;
+  --live: #087a55;
+  --warning: #fe9800;
+  --market-us: #0d7377;
+  --control-shadow: #00000009;
+  --modal-shadow: #00000040;
+  --backdrop: #0000008c;
+  --shadow: 0 3px 16px #191f2804;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -27,16 +35,24 @@
 }
 :root.dark {
   color-scheme: dark;
-  --bg: #0f1520;
-  --surface: #192231;
-  --text: #ecf0f8;
-  --muted: #98a7bd;
-  --chart-grid: #35435b;
-  --border: #293448;
-  --hover: #222f42;
-  --accent: #9693ff;
-  --profit: #ff7c86;
-  --loss: #78aaff;
+  --bg: #17171c;
+  --surface: #202027;
+  --text: #f2f4f6;
+  --muted: #b0b8c1;
+  --chart-grid: #3a3a42;
+  --border: #34343c;
+  --hover: #2c2c35;
+  --accent: #1b64da;
+  --accent-hover: #1957c2;
+  --focus: #64a8ff;
+  --profit: #fb8890;
+  --loss: #64a8ff;
+  --live: #63d6b5;
+  --warning: #fe9800;
+  --market-us: #6fd6d0;
+  --control-shadow: #00000009;
+  --modal-shadow: #00000040;
+  --backdrop: #0000008c;
   --shadow: none;
 }
 * {
@@ -69,7 +85,7 @@ input {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
 h1,
@@ -119,7 +135,7 @@ table,
 .brand-mark {
   width: 28px;
   height: 28px;
-  background: #6265e8;
+  background: var(--accent);
   color: white;
   display: grid;
   place-items: center;
@@ -164,12 +180,12 @@ table,
   line-height: 1;
 }
 .primary-button {
-  background: #6265e8;
-  border-color: #6265e8;
+  background: var(--accent);
+  border-color: var(--accent);
   color: white;
 }
 .primary-button:hover {
-  background: #5356d2;
+  background: var(--accent-hover);
 }
 .mask-button {
   display: inline-flex;
@@ -177,9 +193,9 @@ table,
   gap: 6px;
 }
 .mask-button[aria-pressed="true"] {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--hover);
 }
 main {
   max-width: 1448px;
@@ -224,7 +240,7 @@ h1 {
   border-radius: 20px;
 }
 .live-badge.is-live {
-  color: #23a282;
+  color: var(--live);
 }
 .live-dot {
   display: inline-block;
@@ -248,17 +264,17 @@ h1 {
   font-size: 12px;
   font-weight: 750;
   letter-spacing: 1px;
-  color: var(--accent);
+  color: var(--text);
   padding: 2px 6px;
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border: 1px solid var(--border);
   border-radius: 4px;
 }
 .error-banner {
   font-size: 12px;
   line-height: 1.8;
   padding: 12px 16px;
-  background: color-mix(in srgb, #e4ad48 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, #e4ad48 25%, var(--border));
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, var(--border));
   border-radius: 12px;
   margin-bottom: 12px;
   overflow-wrap: anywhere;
@@ -341,11 +357,11 @@ h1 {
   margin-top: 4px;
 }
 .primary-card {
-  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+  background: var(--surface);
+  border-color: var(--border);
 }
 .primary-card h2 {
-  color: var(--accent);
+  color: var(--text);
 }
 .primary-card .summary-detail {
   color: var(--muted);
@@ -535,7 +551,7 @@ h1 {
 .segmented button[aria-pressed="true"] {
   color: var(--text);
   background: var(--surface);
-  box-shadow: 0 1px 4px #00000009;
+  box-shadow: 0 1px 4px var(--control-shadow);
   font-weight: 650;
 }
 .chart-note {
@@ -550,7 +566,7 @@ h1 {
 .count {
   font-size: 12px;
   font-weight: 500;
-  color: var(--accent);
+  color: var(--text);
   margin-left: 5px;
 }
 .table-scroll {
@@ -631,12 +647,12 @@ td small {
   place-items: center;
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--text);
+  background: var(--hover);
 }
 .market-icon.us {
-  color: #299f91;
-  background: color-mix(in srgb, #299f91 10%, var(--surface));
+  color: var(--market-us);
+  background: color-mix(in srgb, var(--market-us) 10%, var(--surface));
 }
 .market-icon img {
   position: absolute;
@@ -708,10 +724,10 @@ td small {
   background: var(--surface);
   color: var(--text);
   margin: auto;
-  box-shadow: 0 24px 100px #00000040;
+  box-shadow: 0 24px 100px var(--modal-shadow);
 }
 .share-modal::backdrop {
-  background: #0b14258c;
+  background: var(--backdrop);
 }
 .modal-heading {
   display: flex;
@@ -844,7 +860,7 @@ td small {
   padding: 8px 0;
 }
 .analytics-info summary:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
 }
 .analytics-info p {
   position: absolute;
@@ -952,7 +968,7 @@ td small {
   z-index: 3;
 }
 .analytics-scroll:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 .analytics-table th {
@@ -999,7 +1015,7 @@ td small {
   border-color: var(--accent);
 }
 .rebalance-drift {
-  color: var(--accent);
+  color: var(--text);
 }
 .rebalance-actions {
   display: flex;
@@ -1157,11 +1173,11 @@ td small {
   min-width: 0;
 }
 .table-scroll:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 .bar-wrap:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 /* Separate borders prevent collapsed-border painting gaps beneath sticky totals. */
