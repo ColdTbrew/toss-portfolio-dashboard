@@ -40,7 +40,21 @@ export const Route = createRootRoute({
 				content: "내 자산과 수익률을 한눈에 보는 조회 전용 포트폴리오",
 			},
 		],
-		links: [{ rel: "stylesheet", href: appCss }],
+		links: [
+			{ rel: "stylesheet", href: appCss },
+			{ rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+			{
+				rel: "icon",
+				href: "/favicon-32x32.png",
+				type: "image/png",
+				sizes: "32x32",
+			},
+			{
+				rel: "apple-touch-icon",
+				href: "/apple-touch-icon.png",
+				sizes: "180x180",
+			},
+		],
 	}),
 	shellComponent: RootDocument,
 });

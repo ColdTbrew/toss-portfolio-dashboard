@@ -33,7 +33,7 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 			? formatPercent(value, true)
 			: formatAmount(value, { masked, signed: true });
 	return (
-		<section className="panel" aria-labelledby="pnl-heading">
+		<section className="panel pnl-panel" aria-labelledby="pnl-heading">
 			<div className="panel-heading">
 				<div>
 					<p className="eyebrow">PERFORMANCE</p>
@@ -42,10 +42,16 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 				<span className="subtle">{masked ? "% 기준" : "원화 환산"}</span>
 			</div>
 			{data.length ? (
-				<div className="bar-wrap">
+				<section
+					className="bar-wrap"
+					aria-label={`종목별 ${masked ? "수익률" : "손익"} 차트`}
+					// biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard focus enables scrolling every bar in a compact chart.
+					tabIndex={0}
+				>
 					<ResponsiveContainer
 						width="100%"
-						height={Math.max(260, data.length * 30)}
+						height="100%"
+						minHeight={data.length * 18 + 32}
 						onResize={(width) =>
 							setAxisWidth(
 								Math.min(180, Math.max(112, Math.round(width * 0.36))),
@@ -56,18 +62,20 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 							key={masked ? "rate" : "amount"}
 							data={data}
 							layout="vertical"
-							margin={{ left: 0, right: 20, top: 8, bottom: 0 }}
+							margin={{ left: 0, right: 32, top: 8, bottom: 0 }}
 							accessibilityLayer
 						>
 							<CartesianGrid
-								stroke="var(--border)"
+								stroke="var(--chart-grid)"
 								horizontal={false}
 								strokeDasharray="3 5"
 							/>
 							<XAxis
 								type="number"
+								tickCount={3}
+								minTickGap={16}
 								tickFormatter={format}
-								tick={{ fontSize: 10, fill: "var(--muted)" }}
+								tick={{ fontSize: 12, fill: "var(--muted)" }}
 								axisLine={false}
 								tickLine={false}
 							/>
@@ -88,7 +96,7 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 											breakAll
 											textAnchor="end"
 											verticalAnchor="middle"
-											style={{ fontSize: 11 }}
+											style={{ fontSize: 12 }}
 											fill="var(--muted)"
 										>
 											{String(payload.value)}
@@ -99,6 +107,8 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 								tickLine={false}
 							/>
 							<Tooltip
+								itemStyle={{ color: "var(--text)" }}
+								labelStyle={{ color: "var(--muted)" }}
 								formatter={(value) => format(Number(value))}
 								cursor={{ fill: "var(--hover)" }}
 								contentStyle={{
@@ -124,7 +134,7 @@ export function PnlBarChart({ state }: { state: PortfolioState }) {
 							</Bar>
 						</BarChart>
 					</ResponsiveContainer>
-				</div>
+				</section>
 			) : (
 				<p className="empty-state">보유종목이 없습니다.</p>
 			)}

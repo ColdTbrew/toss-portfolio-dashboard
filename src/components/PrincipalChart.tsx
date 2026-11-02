@@ -99,93 +99,98 @@ export function PrincipalChart({
 				</fieldset>
 			</div>
 			{data.length >= 2 ? (
-				<ResponsiveContainer width="100%" height={240}>
-					<LineChart
-						key={masked ? "masked" : "amounts"}
-						data={data}
-						margin={{ top: 16, right: 20, left: 0, bottom: 4 }}
-						accessibilityLayer
-					>
-						<CartesianGrid
-							stroke="var(--border)"
-							vertical={false}
-							strokeDasharray="3 5"
-						/>
-						<XAxis
-							dataKey="date"
-							tickFormatter={(date) => String(date).slice(5).replace("-", ".")}
-							ticks={ticks}
-							minTickGap={16}
-							tick={{ fontSize: 11, fill: "var(--muted)" }}
-							axisLine={false}
-							tickLine={false}
-						/>
-						<YAxis
-							domain={["auto", "auto"]}
-							width={masked ? 0 : 88}
-							tickCount={4}
-							tickFormatter={(value) =>
-								masked ? "" : formatKrwManwon(Number(value))
-							}
-							tick={masked ? false : { fontSize: 11, fill: "var(--muted)" }}
-							axisLine={false}
-							tickLine={false}
-						/>
-						<Tooltip
-							content={({ active, label }) => {
-								const point = series.find((point) => point.date === label);
-								if (!active || !point) return null;
-								return (
-									<div className="principal-tooltip">
-										<p className="subtle">{point.date}</p>
-										{!masked && (
-											<>
-												<p className="principal-tooltip-row">
-													<span>평가금</span> <Amount value={point.value} />
-												</p>
-												{compare && (
+				<div className="chart-frame">
+					<ResponsiveContainer width="100%" height="100%">
+						<LineChart
+							key={masked ? "masked" : "amounts"}
+							data={data}
+							margin={{ top: 16, right: 20, left: 0, bottom: 4 }}
+							accessibilityLayer
+						>
+							<CartesianGrid
+								stroke="var(--chart-grid)"
+								vertical={false}
+								strokeDasharray="3 5"
+							/>
+							<XAxis
+								dataKey="date"
+								tickFormatter={(date) =>
+									String(date).slice(5).replace("-", ".")
+								}
+								ticks={ticks}
+								minTickGap={16}
+								tick={{ fontSize: 12, fill: "var(--muted)" }}
+								axisLine={false}
+								tickLine={false}
+							/>
+							<YAxis
+								domain={["auto", "auto"]}
+								width={masked ? 0 : 88}
+								tickCount={4}
+								tickFormatter={(value) =>
+									masked ? "" : formatKrwManwon(Number(value))
+								}
+								tick={masked ? false : { fontSize: 12, fill: "var(--muted)" }}
+								axisLine={false}
+								tickLine={false}
+							/>
+							<Tooltip
+								content={({ active, label }) => {
+									const point = series.find((point) => point.date === label);
+									if (!active || !point) return null;
+									return (
+										<div className="principal-tooltip">
+											<p className="subtle">{point.date}</p>
+											{!masked && (
+												<>
 													<p className="principal-tooltip-row">
-														<span>원금</span> <Amount value={point.principal} />
+														<span>평가금</span> <Amount value={point.value} />
 													</p>
-												)}
-											</>
-										)}
-										<p className="principal-tooltip-row">
-											<span>원금 대비</span>{" "}
-											<span className={pnlClass(point.gap)}>
-												{!masked && <Amount value={point.gap} signed />} (
-												{formatPercent(point.gapRate, true)})
-											</span>
-										</p>
-									</div>
-								);
-							}}
-						/>
-						<Line
-							type="linear"
-							dataKey="value"
-							name="평가금"
-							stroke="var(--accent)"
-							strokeWidth={2.5}
-							dot={false}
-							activeDot={{ r: 5, strokeWidth: 3, stroke: "var(--surface)" }}
-							isAnimationActive={false}
-						/>
-						{compare && (
+													{compare && (
+														<p className="principal-tooltip-row">
+															<span>원금</span>{" "}
+															<Amount value={point.principal} />
+														</p>
+													)}
+												</>
+											)}
+											<p className="principal-tooltip-row">
+												<span>원금 대비</span>{" "}
+												<span className={pnlClass(point.gap)}>
+													{!masked && <Amount value={point.gap} signed />} (
+													{formatPercent(point.gapRate, true)})
+												</span>
+											</p>
+										</div>
+									);
+								}}
+							/>
 							<Line
 								type="linear"
-								dataKey="principal"
-								name="원금"
-								stroke="var(--muted)"
-								strokeWidth={1.5}
-								strokeDasharray="5 5"
+								dataKey="value"
+								name="평가금"
+								stroke="var(--chart-line)"
+								strokeWidth={2.5}
 								dot={false}
-								activeDot={{ r: 4, strokeWidth: 1, stroke: "var(--surface)" }}
+								activeDot={{ r: 5, strokeWidth: 3, stroke: "var(--surface)" }}
 								isAnimationActive={false}
 							/>
-						)}
-					</LineChart>
-				</ResponsiveContainer>
+							{compare && (
+								<Line
+									type="linear"
+									dataKey="principal"
+									name="원금"
+									stroke="var(--muted)"
+									strokeWidth={1.5}
+									strokeDasharray="5 5"
+									dot={false}
+									activeDot={{ r: 4, strokeWidth: 1, stroke: "var(--surface)" }}
+									isAnimationActive={false}
+								/>
+							)}
+						</LineChart>
+					</ResponsiveContainer>
+				</div>
 			) : (
 				<p className="empty-state">
 					{data.length === 0

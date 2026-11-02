@@ -139,7 +139,7 @@ function Dashboard() {
 					<span className="brand-mark" aria-hidden="true">
 						↗
 					</span>
-					<span>내 포트폴리오</span>
+					<h1>내 포트폴리오</h1>
 					<span className="read-only">조회 전용</span>
 				</div>
 				<div className="header-actions">
@@ -176,13 +176,6 @@ function Dashboard() {
 			</header>
 			<main id="main">
 				<div className="page-heading">
-					<div>
-						<p className="eyebrow">MY PORTFOLIO</p>
-						<h1>자산의 흐름을 한눈에</h1>
-						<p className="page-subtitle">
-							오늘의 변화부터 차곡차곡 쌓인 수익까지.
-						</p>
-					</div>
 					<div className="connection-info">
 						<LiveBadge
 							connected={connected}
@@ -193,13 +186,13 @@ function Dashboard() {
 							마지막 갱신 {updated} <span className="timezone">KST</span>
 						</span>
 					</div>
+					{state.mock && (
+						<p className="mock-banner">
+							<span className="mock-tag">DEMO</span> 모의 데이터 · 실제 자산
+							아님
+						</p>
+					)}
 				</div>
-				{state.mock && (
-					<div className="mock-banner">
-						<span className="mock-tag">DEMO</span>모의 데이터로 둘러보고 있어요.
-						실제 자산 정보가 아닙니다.
-					</div>
-				)}
 				{Object.keys(state.errors).length > 0 && (
 					<div className="error-banner" aria-live="polite">
 						<strong>
@@ -217,14 +210,18 @@ function Dashboard() {
 				)}
 				<MarketStrip initial={initial.market} />
 				<SummaryCards state={state} />
-				<div className="charts-grid">
-					<AllocationChart state={state} />
-					<PnlBarChart state={state} />
+				<div className="overview-grid">
+					<HoldingsTable state={state} />
+					<div className="overview-charts">
+						<AllocationChart state={state} />
+						<PnlBarChart state={state} />
+					</div>
 				</div>
-				<TrendChart points={trend} />
-				<PrincipalChart totals={state.totals} points={trend} />
+				<div className="charts-grid">
+					<TrendChart points={trend} />
+					<PrincipalChart totals={state.totals} points={trend} />
+				</div>
 				<AnalyticsSection state={state} points={trend} />
-				<HoldingsTable state={state} />
 				<footer className="site-footer">
 					<span>
 						내 포트폴리오 <span className="footer-dot">·</span> 조회 전용

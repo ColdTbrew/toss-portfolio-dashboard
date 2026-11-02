@@ -19,13 +19,13 @@ type SortKey =
 	| "weight";
 const columns: [SortKey, string][] = [
 	["name", "종목"],
+	["evalKrw", "평가금액 (원)"],
+	["returnRate", "수익률"],
+	["dailyPl", "오늘 손익"],
 	["quantity", "수량"],
 	["avgPrice", "평균가"],
 	["lastPrice", "현재가"],
-	["evalKrw", "평가금액 (원)"],
 	["profitLoss", "손익"],
-	["returnRate", "수익률"],
-	["dailyPl", "오늘 손익"],
 	["weight", "비중"],
 ];
 
@@ -60,7 +60,7 @@ export function StockLogo({ row }: { row: HoldingRow }) {
 	);
 }
 
-function PriceCell({ row, fx }: { row: HoldingRow; fx?: number }) {
+function usePriceFlash(row: HoldingRow) {
 	const previous = useRef(row.lastPrice);
 	const [flash, setFlash] = useState("");
 	useEffect(() => {
@@ -71,6 +71,11 @@ function PriceCell({ row, fx }: { row: HoldingRow; fx?: number }) {
 		const timeout = setTimeout(() => setFlash(""), 650);
 		return () => clearTimeout(timeout);
 	}, [row.lastPrice, row.lastTickAt]);
+	return flash;
+}
+
+function PriceCell({ row, fx }: { row: HoldingRow; fx?: number }) {
+	const flash = usePriceFlash(row);
 	return (
 		<td className={flash}>
 			{formatMoney(row.lastPrice, row.currency)}
@@ -78,6 +83,16 @@ function PriceCell({ row, fx }: { row: HoldingRow; fx?: number }) {
 				<small>{formatMoney(row.lastPrice * fx, "KRW")}</small>
 			)}
 		</td>
+	);
+}
+
+function MobilePrice({ row }: { row: HoldingRow }) {
+	const flash = usePriceFlash(row);
+	return (
+		<span className={flash || undefined}>
+			<small>현재가</small>
+			<Amount value={row.lastPrice} currency={row.currency} />
+		</span>
 	);
 }
 
@@ -130,8 +145,46 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 					))}
 				</fieldset>
 			</div>
-			<div className="table-scroll">
+			<div className="holdings-mobile-tools">
+				<label>
+					<span>정렬</span>
+					<select
+						aria-label="보유종목 정렬 기준"
+						value={sort.key}
+						onChange={(event) => {
+							const key = event.target.value as SortKey;
+							setSort({ key, asc: key === "name" });
+						}}
+					>
+						{columns.map(([key, label]) => (
+							<option key={key} value={key}>
+								{label}
+							</option>
+						))}
+					</select>
+				</label>
+				<button
+					type="button"
+					className="button sort-direction"
+					aria-label={`정렬 방향: ${sort.asc ? "오름차순" : "내림차순"}`}
+					onClick={() => setSort({ ...sort, asc: !sort.asc })}
+				>
+					<span aria-hidden="true">{sort.asc ? "↑" : "↓"}</span>
+					{sort.asc ? "오름차순" : "내림차순"}
+				</button>
+			</div>
+			<section
+				className="table-scroll"
+				aria-label="보유종목 표"
+				// biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard focus enables scrolling all columns.
+				tabIndex={0}
+			>
 				<table>
+					<colgroup>
+						{columns.map(([key]) => (
+							<col key={key} className={`col-${key}`} />
+						))}
+					</colgroup>
 					<thead>
 						<tr>
 							{columns.map(([key, label]) => (
@@ -170,21 +223,37 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 									<div className="stock-name">
 										<StockLogo row={row} />
 										<div>
-											<strong>{row.name}</strong>
+											<strong title={row.name}>{row.name}</strong>
 											<small>
 												{row.symbol} · {row.market === "KR" ? "국내" : "미국"}
 											</small>
-											<Sparkline closes={sparklines?.[row.symbol]} />
 										</div>
+										<Sparkline closes={sparklines?.[row.symbol]} />
+									</div>
+									<div className="mobile-holding-details">
+										<span>
+											<small>수량</small>
+											<Amount value={row.quantity} quantity />
+										</span>
+										<span>
+											<small>평균가</small>
+											<Amount value={row.avgPrice} currency={row.currency} />
+										</span>
+										<MobilePrice row={row} />
+										<span className={pnlClass(row.profitLoss)}>
+											<small>손익</small>
+											<Amount
+												value={row.profitLoss}
+												currency={row.currency}
+												signed
+											/>
+										</span>
+										<span>
+											<small>비중</small>
+											{formatPercent(row.weight)}
+										</span>
 									</div>
 								</td>
-								<td>
-									<Amount value={row.quantity} quantity />
-								</td>
-								<td>
-									<Amount value={row.avgPrice} currency={row.currency} />
-								</td>
-								<PriceCell row={row} fx={state.fx?.midRate} />
 								<td>
 									<Amount value={row.evalKrw} />
 									{row.currency === "USD" && (
@@ -193,17 +262,10 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 										</small>
 									)}
 								</td>
-								<td className={pnlClass(row.profitLoss)}>
-									<Amount
-										value={row.profitLoss}
-										currency={row.currency}
-										signed
-									/>
-								</td>
-								<td className={pnlClass(row.returnRate)}>
+								<td className={pnlClass(row.returnRate)} data-label="수익률">
 									{formatPercent(row.returnRate, true)}
 								</td>
-								<td className={pnlClass(row.dailyPl)}>
+								<td className={pnlClass(row.dailyPl)} data-label="오늘 손익">
 									<Amount value={row.dailyPl} currency={row.currency} signed />
 									<small>
 										{formatPercent(
@@ -211,6 +273,20 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 											true,
 										)}
 									</small>
+								</td>
+								<td>
+									<Amount value={row.quantity} quantity />
+								</td>
+								<td>
+									<Amount value={row.avgPrice} currency={row.currency} />
+								</td>
+								<PriceCell row={row} fx={state.fx?.midRate} />
+								<td className={pnlClass(row.profitLoss)}>
+									<Amount
+										value={row.profitLoss}
+										currency={row.currency}
+										signed
+									/>
 								</td>
 								<td>{formatPercent(row.weight)}</td>
 							</tr>
@@ -220,7 +296,7 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 				{!rows.length && (
 					<p className="empty-state">보유 중인 종목이 없습니다.</p>
 				)}
-			</div>
+			</section>
 		</section>
 	);
 }

@@ -2,13 +2,13 @@ import { kstIso, ratio } from "./compute";
 import type { PortfolioState } from "./types";
 
 export const ALLOCATION_COLORS = [
-	"#6366f1",
-	"#3b82f6",
-	"#22b8a8",
-	"#e4ad48",
-	"#a78bfa",
-	"#f28d82",
-	"#94a3b8",
+	"#3182f6",
+	"#fe9800",
+	"#a234c7",
+	"#ffc342",
+	"#90c2ff",
+	"#da9bef",
+	"#8b95a1",
 ];
 
 export function allocationSlices(state: PortfolioState) {
