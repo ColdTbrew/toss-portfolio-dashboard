@@ -9,15 +9,15 @@ export function drawShareCard(
 	ctx.canvas.width = 1080;
 	ctx.canvas.height = 1350;
 	const dark = theme === "dark";
-	const text = dark ? "#edf1fa" : "#172337";
-	const muted = dark ? "#99a7bc" : "#6c7b90";
-	const profit = dark ? "#fb777f" : "#e74856";
-	const loss = dark ? "#70a8ff" : "#2875df";
+	const text = dark ? "#eef1ed" : "#222724";
+	const muted = dark ? "#a5aea7" : "#616762";
+	const profit = dark ? "#ff8589" : "#c43743";
+	const loss = dark ? "#79b8f2" : "#1468ad";
 	const signColor = (value: number) =>
 		value > 0 ? profit : value < 0 ? loss : text;
-	ctx.fillStyle = dark ? "#101722" : "#f4f6fb";
+	ctx.fillStyle = dark ? "#121513" : "#f4f5f2";
 	ctx.fillRect(0, 0, 1080, 1350);
-	ctx.fillStyle = dark ? "#192332" : "#ffffff";
+	ctx.fillStyle = dark ? "#1b1f1c" : "#ffffff";
 	ctx.beginPath();
 	ctx.roundRect(40, 40, 1000, 1270, 32);
 	ctx.fill();
