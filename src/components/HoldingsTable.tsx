@@ -60,7 +60,7 @@ export function StockLogo({ row }: { row: HoldingRow }) {
 	);
 }
 
-function PriceCell({ row, fx }: { row: HoldingRow; fx?: number }) {
+function usePriceFlash(row: HoldingRow) {
 	const previous = useRef(row.lastPrice);
 	const [flash, setFlash] = useState("");
 	useEffect(() => {
@@ -71,6 +71,11 @@ function PriceCell({ row, fx }: { row: HoldingRow; fx?: number }) {
 		const timeout = setTimeout(() => setFlash(""), 650);
 		return () => clearTimeout(timeout);
 	}, [row.lastPrice, row.lastTickAt]);
+	return flash;
+}
+
+function PriceCell({ row, fx }: { row: HoldingRow; fx?: number }) {
+	const flash = usePriceFlash(row);
 	return (
 		<td className={flash}>
 			{formatMoney(row.lastPrice, row.currency)}
@@ -78,6 +83,16 @@ function PriceCell({ row, fx }: { row: HoldingRow; fx?: number }) {
 				<small>{formatMoney(row.lastPrice * fx, "KRW")}</small>
 			)}
 		</td>
+	);
+}
+
+function MobilePrice({ row }: { row: HoldingRow }) {
+	const flash = usePriceFlash(row);
+	return (
+		<span className={flash || undefined}>
+			<small>현재가</small>
+			<Amount value={row.lastPrice} currency={row.currency} />
+		</span>
 	);
 }
 
@@ -224,10 +239,7 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 											<small>평균가</small>
 											<Amount value={row.avgPrice} currency={row.currency} />
 										</span>
-										<span>
-											<small>현재가</small>
-											<Amount value={row.lastPrice} currency={row.currency} />
-										</span>
+										<MobilePrice row={row} />
 										<span className={pnlClass(row.profitLoss)}>
 											<small>손익</small>
 											<Amount
