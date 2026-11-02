@@ -10,6 +10,7 @@
   --text: #191f28;
   --muted: #4e5968;
   --chart-grid: #e5e8eb;
+  --chart-line: #1b64da;
   --gap: 16px;
   --panel-pad: 16px;
   --chart-height: 220px;
@@ -20,9 +21,9 @@
   --focus: #1b64da;
   --profit: #d22030;
   --loss: #194aa6;
-  --live: #087a55;
+  --live: #1b64da;
   --warning: #fe9800;
-  --market-us: #0d7377;
+  --market-us: #8222a2;
   --control-shadow: #00000009;
   --modal-shadow: #00000040;
   --backdrop: #0000008c;
@@ -40,6 +41,7 @@
   --text: #f2f4f6;
   --muted: #b0b8c1;
   --chart-grid: #3a3a42;
+  --chart-line: #4593fc;
   --border: #34343c;
   --hover: #2c2c35;
   --accent: #1b64da;
@@ -47,9 +49,9 @@
   --focus: #64a8ff;
   --profit: #fb8890;
   --loss: #64a8ff;
-  --live: #63d6b5;
+  --live: #90c2ff;
   --warning: #fe9800;
-  --market-us: #6fd6d0;
+  --market-us: #da9bef;
   --control-shadow: #00000009;
   --modal-shadow: #00000040;
   --backdrop: #0000008c;

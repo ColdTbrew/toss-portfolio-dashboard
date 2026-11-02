@@ -273,7 +273,7 @@ it("makes distinct deterministic palette-coloured mock icons without network cal
 		expect(svg).toContain(`>${row.name[0]}${row.symbol.slice(-1)}</text>`);
 		expect(svg).toContain('width="24" height="24"');
 		expect(svg).toMatch(
-			/<circle cx="12" cy="12" r="12" fill="#(?:1b64da|0d7377|4e5968|6b7684)"\/>/,
+			/<circle cx="12" cy="12" r="12" fill="#(?:1b64da|9128b4|4e5968|6b7684)"\/>/,
 		);
 		expect(svg).not.toMatch(/#(?:e34e59|347ce4)/);
 		colors.add(svg.match(/<circle[^>]+fill="([^"]+)"/)?.[1] ?? "");

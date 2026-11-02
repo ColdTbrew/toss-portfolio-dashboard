@@ -3,11 +3,11 @@ import type { PortfolioState } from "./types";
 
 export const ALLOCATION_COLORS = [
 	"#3182f6",
-	"#18a5a5",
 	"#fe9800",
-	"#ffc342",
 	"#a234c7",
-	"#03b26c",
+	"#ffc342",
+	"#90c2ff",
+	"#da9bef",
 	"#8b95a1",
 ];
 

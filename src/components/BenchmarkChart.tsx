@@ -21,7 +21,7 @@ const lines = [
 	{
 		key: "portfolio",
 		name: "포트폴리오",
-		color: "var(--accent)",
+		color: "var(--chart-line)",
 		dash: undefined,
 	},
 	{ key: "^KS11", name: "코스피", color: "var(--profit)", dash: "5 3" },

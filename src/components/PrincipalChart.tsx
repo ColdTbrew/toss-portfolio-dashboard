@@ -169,7 +169,7 @@ export function PrincipalChart({
 								type="linear"
 								dataKey="value"
 								name="평가금"
-								stroke="var(--accent)"
+								stroke="var(--chart-line)"
 								strokeWidth={2.5}
 								dot={false}
 								activeDot={{ r: 5, strokeWidth: 3, stroke: "var(--surface)" }}

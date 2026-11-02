@@ -109,7 +109,7 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
 								type="linear"
 								dataKey="value"
 								name={mode === "rate" ? "수익률" : "총자산"}
-								stroke="var(--accent)"
+								stroke="var(--chart-line)"
 								strokeWidth={2.5}
 								dot={false}
 								activeDot={{ r: 5, strokeWidth: 3, stroke: "var(--surface)" }}

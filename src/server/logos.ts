@@ -31,8 +31,8 @@ function mockLogo(symbol: string, name: string): Logo | null {
 	const initial = name.match(/[\p{L}\p{N}]/u)?.[0] ?? symbol[0];
 	const suffix = symbol.match(/\d(?=\D*$)/)?.[0] ?? symbol.slice(-1);
 	const initials = `${initial}${suffix}`;
-	// Toss-like accent blue, overseas badge and neutral grey tones.
-	const colors = ["#1b64da", "#0d7377", "#4e5968", "#6b7684"];
+	// Toss-like accent blue, overseas purple and neutral grey tones.
+	const colors = ["#1b64da", "#9128b4", "#4e5968", "#6b7684"];
 	const hash = Array.from(symbol).reduce(
 		(value, character) => (value * 31 + character.charCodeAt(0)) >>> 0,
 		0,
