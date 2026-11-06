@@ -193,6 +193,50 @@ describe("read-only REST client", () => {
 		);
 	});
 
+	it("pages from US overnight bars back through the prior regular session", async () => {
+		const { client, request } = setup();
+		const pages = [
+			[
+				{ close: 15, timestamp: "2026-11-06T14:15:00+09:00" },
+				{ close: 14, timestamp: "2026-11-06T14:00:00+09:00" },
+			],
+			[
+				{ close: 13, timestamp: "2026-11-06T08:00:00+09:00" },
+				{ close: 12, timestamp: "2026-11-06T06:00:00+09:00" },
+			],
+			[
+				{ close: 11, timestamp: "2026-11-05T23:30:00+09:00" },
+				{ close: 10, timestamp: "2026-11-05T18:00:00+09:00" },
+			],
+			[
+				{ close: 9, timestamp: "2026-11-05T06:00:00+09:00" },
+				{ close: 8, timestamp: "2026-11-04T23:30:00+09:00" },
+			],
+		];
+		for (const candles of pages)
+			request.mockResolvedValueOnce(
+				json({ result: { candles, nextBefore: candles.at(-1)?.timestamp } }),
+			);
+		expect(await client.getIntraday("FAKEUS", { count: 2 })).toEqual([
+			{ t: "2026-11-05T18:00:00+09:00", close: 10 },
+			{ t: "2026-11-05T23:30:00+09:00", close: 11 },
+			{ t: "2026-11-06T06:00:00+09:00", close: 12 },
+			{ t: "2026-11-06T08:00:00+09:00", close: 13 },
+			{ t: "2026-11-06T14:00:00+09:00", close: 14 },
+			{ t: "2026-11-06T14:15:00+09:00", close: 15 },
+		]);
+		expect(request).toHaveBeenCalledTimes(4);
+		expect(
+			request.mock.calls.map(([input]) =>
+				new URL(String(input)).searchParams.get("before"),
+			),
+		).toEqual([
+			null,
+			"2026-11-06T14:00:00+09:00",
+			"2026-11-06T06:00:00+09:00",
+			"2026-11-05T18:00:00+09:00",
+		]);
+	});
 	it("pages 1m candles until the latest exchange session is covered", async () => {
 		const { client, request } = setup();
 		const open = Date.parse("2026-06-01T13:30:00Z");
