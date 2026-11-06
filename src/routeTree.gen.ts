@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiAnalyticsRouteImport } from './routes/api/analytics'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiIntradayRouteImport } from './routes/api/intraday'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMarketRouteImport } from './routes/api/market'
 import { Route as ApiPortfolioRouteImport } from './routes/api/portfolio'
@@ -33,6 +34,11 @@ const ApiAnalyticsRoute = ApiAnalyticsRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiIntradayRoute = ApiIntradayRouteImport.update({
+  id: '/api/intraday',
+  path: '/api/intraday',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiLogoRoute = ApiLogoRouteImport.update({
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/analytics': typeof ApiAnalyticsRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/intraday': typeof ApiIntradayRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/market': typeof ApiMarketRoute
   '/api/portfolio': typeof ApiPortfolioRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/analytics': typeof ApiAnalyticsRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/intraday': typeof ApiIntradayRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/market': typeof ApiMarketRoute
   '/api/portfolio': typeof ApiPortfolioRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/api/analytics': typeof ApiAnalyticsRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/intraday': typeof ApiIntradayRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/market': typeof ApiMarketRoute
   '/api/portfolio': typeof ApiPortfolioRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/analytics'
     | '/api/health'
+    | '/api/intraday'
     | '/api/logo'
     | '/api/market'
     | '/api/portfolio'
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/analytics'
     | '/api/health'
+    | '/api/intraday'
     | '/api/logo'
     | '/api/market'
     | '/api/portfolio'
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/analytics'
     | '/api/health'
+    | '/api/intraday'
     | '/api/logo'
     | '/api/market'
     | '/api/portfolio'
@@ -151,6 +163,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiAnalyticsRoute: typeof ApiAnalyticsRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiIntradayRoute: typeof ApiIntradayRoute
   ApiLogoRoute: typeof ApiLogoRoute
   ApiMarketRoute: typeof ApiMarketRoute
   ApiPortfolioRoute: typeof ApiPortfolioRoute
@@ -181,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/intraday': {
+      id: '/api/intraday'
+      path: '/api/intraday'
+      fullPath: '/api/intraday'
+      preLoaderRoute: typeof ApiIntradayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/logo': {
@@ -239,6 +259,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiAnalyticsRoute: ApiAnalyticsRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiIntradayRoute: ApiIntradayRoute,
   ApiLogoRoute: ApiLogoRoute,
   ApiMarketRoute: ApiMarketRoute,
   ApiPortfolioRoute: ApiPortfolioRoute,

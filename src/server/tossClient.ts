@@ -4,6 +4,7 @@ import type {
 	DatedClose,
 	ExchangeRate,
 	HoldingsOverview,
+	TimedClose,
 } from "../lib/types";
 import { type Now, readConfig, type Sleep, sleep } from "./config";
 import { ALLOWED_ENDPOINTS, TOSS_REST_BASE } from "./endpoints";
@@ -25,6 +26,10 @@ export interface TossClient {
 		symbol: string,
 		options: { interval: "1d"; count: number; market?: "KR" | "US" },
 	): Promise<DatedClose[]>;
+	getIntraday(
+		symbol: string,
+		options: { count: number; market?: "KR" | "US" },
+	): Promise<TimedClose[]>;
 }
 
 export function parseDatedCandles(
@@ -64,6 +69,43 @@ export function parseCandleCloses(result: unknown): number[] {
 			return close !== null && close > 0 ? [close] : [];
 		})
 		.reverse();
+}
+
+// Intraday (1m) bars: parse to time-stamped points and keep only the most
+// recent trading session, i.e. the latest exchange-local date present.
+export function parseTimedCandles(
+	result: unknown,
+	market: "KR" | "US",
+): TimedClose[] {
+	const candles = record(result).candles;
+	if (!Array.isArray(candles)) return [];
+	const timeZone = market === "KR" ? "Asia/Seoul" : "America/New_York";
+	const rows = new Map<number, TimedClose & { epoch: number; date: string }>();
+	for (const candle of candles) {
+		const row = record(candle);
+		const close = finiteNumber(row.closePrice) ?? finiteNumber(row.close);
+		const stamp = typeof row.timestamp === "string" ? row.timestamp : "";
+		const epoch = Date.parse(stamp);
+		if (
+			close === null ||
+			close <= 0 ||
+			!Number.isFinite(epoch) ||
+			rows.has(epoch)
+		)
+			continue;
+		// An explicit offset (Toss sends e.g. +09:00) already labels the bar's
+		// own calendar day; only UTC stamps are converted to the exchange date.
+		const date = /^\d{4}-\d{2}-\d{2}T[^Z]*[+-]\d{2}:?\d{2}$/.test(stamp)
+			? stamp.slice(0, 10)
+			: exchangeDate(epoch, timeZone);
+		if (!date) continue;
+		rows.set(epoch, { t: stamp, close, epoch, date });
+	}
+	const points = [...rows.values()].sort((a, b) => a.epoch - b.epoch);
+	const lastDate = points.at(-1)?.date;
+	return points
+		.filter((point) => point.date === lastDate)
+		.map(({ t, close }) => ({ t, close }));
 }
 
 export function createTossClient(options: {
@@ -190,6 +232,16 @@ export function createTossClient(options: {
 				await get(ALLOWED_ENDPOINTS.candles, {
 					symbol,
 					interval,
+					count: String(count),
+				}),
+				market ?? (/^\d{6}$/.test(symbol) ? "KR" : "US"),
+			);
+		},
+		async getIntraday(symbol, { count, market }) {
+			return parseTimedCandles(
+				await get(ALLOWED_ENDPOINTS.candles, {
+					symbol,
+					interval: "1m",
 					count: String(count),
 				}),
 				market ?? (/^\d{6}$/.test(symbol) ? "KR" : "US"),

@@ -11,6 +11,15 @@ export interface IntradayPoint {
 	t: number;
 	v: number;
 }
+/** Holding 1m bar; `t` is an ISO timestamp (exchange-local offset when present). */
+export interface TimedClose {
+	t: string;
+	close: number;
+}
+export interface IntradayData {
+	previousClose: number | null;
+	points: TimedClose[];
+}
 export interface AnalyticsData {
 	fetchedAt: string;
 	candles: Record<string, DatedClose[]>;

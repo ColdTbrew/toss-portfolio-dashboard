@@ -1,4 +1,4 @@
-import { buildState, kstIso } from "../lib/compute";
+import { buildState, kstIso, timeZoneOffsetMinutes } from "../lib/compute";
 import type { TargetsDocument } from "../lib/targets";
 import type {
 	ByCcy,
@@ -8,6 +8,7 @@ import type {
 	PortfolioState,
 	RawPortfolio,
 	Tick,
+	TimedClose,
 	TrendPoint,
 } from "../lib/types";
 
@@ -170,6 +171,67 @@ export function createMockIntraday(
 			v: Number((drift + oscillation).toFixed(4)),
 		};
 	});
+}
+
+// One-minute bars for the most recent session, starting near the previous
+// close and ending exactly at the mock last price (same seeding as mockHistory).
+const sessions = {
+	KR: { open: 9 * 60, close: 15 * 60 + 30, timeZone: "Asia/Seoul" },
+	US: { open: 9 * 60 + 30, close: 16 * 60, timeZone: "America/New_York" },
+} as const;
+
+export function mockIntraday(
+	symbol: string,
+	market: "KR" | "US",
+	previousClose: number,
+	last: number,
+	now = Date.now(),
+): TimedClose[] {
+	const seed = Array.from(symbol).reduce(
+		(hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0,
+		0,
+	);
+	const session = sessions[market];
+	const offset = timeZoneOffsetMinutes(session.timeZone, now);
+	// Wall-clock date of `now` in the exchange time zone, as if it were UTC.
+	const local = new Date(now + offset * 60_000);
+	const openUtc =
+		Date.UTC(
+			local.getUTCFullYear(),
+			local.getUTCMonth(),
+			local.getUTCDate(),
+			Math.floor(session.open / 60),
+			session.open % 60,
+		) -
+		offset * 60_000;
+	const closeUtc =
+		Date.UTC(
+			local.getUTCFullYear(),
+			local.getUTCMonth(),
+			local.getUTCDate(),
+			Math.floor(session.close / 60),
+			session.close % 60,
+		) -
+		offset * 60_000;
+	// Before the open (or on later days) show the full session; otherwise the
+	// elapsed part of the live session.
+	const end = now > openUtc ? Math.min(now, closeUtc) : closeUtc;
+	const count = Math.max(1, Math.round((end - openUtc) / 60_000) + 1);
+	const points: TimedClose[] = [];
+	for (let i = 0; i < count; i++) {
+		const fraction = count === 1 ? 1 : i / (count - 1);
+		const drift = previousClose + (last - previousClose) * fraction;
+		const wobble =
+			Math.sin(i / (3 + (seed % 5)) + (seed % 9)) * 0.002 +
+			Math.cos(i * 1.7 + (seed % 13)) * 0.0008;
+		const close =
+			i === count - 1 ? last : Number((drift * (1 + wobble)).toFixed(4));
+		points.push({
+			t: new Date(openUtc + i * 60_000).toISOString(),
+			close,
+		});
+	}
+	return points;
 }
 
 export function createMockTrend(now = Date.now()): TrendPoint[] {
