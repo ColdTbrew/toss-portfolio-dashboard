@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ratio } from "../lib/compute";
 import { formatMoney, formatPercent } from "../lib/format";
 import type { HoldingRow, PortfolioState, Sparklines } from "../lib/types";
 import { usePollingJson } from "../lib/usePollingJson";
 import { Amount } from "./Amount";
+import { HoldingExpand } from "./HoldingExpand";
 import { Sparkline } from "./Sparkline";
 import { pnlClass } from "./SummaryCards";
 
@@ -99,6 +100,7 @@ function MobilePrice({ row }: { row: HoldingRow }) {
 export function HoldingsTable({ state }: { state: PortfolioState }) {
 	const sparklines = usePollingJson<Sparklines>("/api/sparklines", 900_000);
 	const [market, setMarket] = useState<"ALL" | "KR" | "US">("ALL");
+	const [expanded, setExpanded] = useState<string | null>(null);
 	const [sort, setSort] = useState<{ key: SortKey; asc: boolean }>({
 		key: "evalKrw",
 		asc: false,
@@ -217,80 +219,142 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 						</tr>
 					</thead>
 					<tbody>
-						{rows.map((row) => (
-							<tr key={`${row.market}:${row.symbol}`}>
-								<td>
-									<div className="stock-name">
-										<StockLogo row={row} />
-										<div>
-											<strong title={row.name}>{row.name}</strong>
+						{rows.map((row) => {
+							const rowKey = `${row.market}:${row.symbol}`;
+							const isOpen = expanded === rowKey;
+							const toggle = () =>
+								setExpanded((current) => (current === rowKey ? null : rowKey));
+							return (
+								<Fragment key={rowKey}>
+									<tr
+										tabIndex={0}
+										aria-expanded={isOpen}
+										aria-controls={`holding-expand-${row.symbol}`}
+										aria-label={`${row.name} 당일 차트 ${isOpen ? "접기" : "펼치기"}`}
+										className={isOpen ? "holding-row-open" : undefined}
+										onClick={toggle}
+										onKeyDown={(event) => {
+											if (event.key === "Enter" || event.key === " ") {
+												event.preventDefault();
+												toggle();
+											}
+										}}
+									>
+										<td>
+											<div className="stock-name">
+												<StockLogo row={row} />
+												<div>
+													<strong title={row.name}>{row.name}</strong>
+													<small>
+														{row.symbol} ·{" "}
+														{row.market === "KR" ? "국내" : "미국"}
+													</small>
+												</div>
+												<Sparkline closes={sparklines?.[row.symbol]} />
+												<svg
+													className="row-chevron"
+													viewBox="0 0 12 12"
+													width="12"
+													height="12"
+													aria-hidden="true"
+													focusable="false"
+												>
+													<path
+														d="M3 4.5 6 7.5 9 4.5"
+														fill="none"
+														stroke="currentColor"
+														strokeWidth="1.5"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+													/>
+												</svg>
+											</div>
+											<div className="mobile-holding-details">
+												<span>
+													<small>수량</small>
+													<Amount value={row.quantity} quantity />
+												</span>
+												<span>
+													<small>평균가</small>
+													<Amount
+														value={row.avgPrice}
+														currency={row.currency}
+													/>
+												</span>
+												<MobilePrice row={row} />
+												<span className={pnlClass(row.profitLoss)}>
+													<small>손익</small>
+													<Amount
+														value={row.profitLoss}
+														currency={row.currency}
+														signed
+													/>
+												</span>
+												<span>
+													<small>비중</small>
+													{formatPercent(row.weight)}
+												</span>
+											</div>
+										</td>
+										<td>
+											<Amount value={row.evalKrw} />
+											{row.currency === "USD" && (
+												<small>
+													<Amount value={row.evalAmount} currency="USD" />
+												</small>
+											)}
+										</td>
+										<td
+											className={pnlClass(row.returnRate)}
+											data-label="수익률"
+										>
+											{formatPercent(row.returnRate, true)}
+										</td>
+										<td
+											className={pnlClass(row.dailyPl)}
+											data-label="오늘 손익"
+										>
+											<Amount
+												value={row.dailyPl}
+												currency={row.currency}
+												signed
+											/>
 											<small>
-												{row.symbol} · {row.market === "KR" ? "국내" : "미국"}
+												{formatPercent(
+													ratio(row.dailyPl, row.evalAmount - row.dailyPl),
+													true,
+												)}
 											</small>
-										</div>
-										<Sparkline closes={sparklines?.[row.symbol]} />
-									</div>
-									<div className="mobile-holding-details">
-										<span>
-											<small>수량</small>
+										</td>
+										<td>
 											<Amount value={row.quantity} quantity />
-										</span>
-										<span>
-											<small>평균가</small>
+										</td>
+										<td>
 											<Amount value={row.avgPrice} currency={row.currency} />
-										</span>
-										<MobilePrice row={row} />
-										<span className={pnlClass(row.profitLoss)}>
-											<small>손익</small>
+										</td>
+										<PriceCell row={row} fx={state.fx?.midRate} />
+										<td className={pnlClass(row.profitLoss)}>
 											<Amount
 												value={row.profitLoss}
 												currency={row.currency}
 												signed
 											/>
-										</span>
-										<span>
-											<small>비중</small>
-											{formatPercent(row.weight)}
-										</span>
-									</div>
-								</td>
-								<td>
-									<Amount value={row.evalKrw} />
-									{row.currency === "USD" && (
-										<small>
-											<Amount value={row.evalAmount} currency="USD" />
-										</small>
+										</td>
+										<td>{formatPercent(row.weight)}</td>
+									</tr>
+									{isOpen && (
+										<tr
+											className="holding-expand-row"
+											id={`holding-expand-${row.symbol}`}
+										>
+											<td colSpan={columns.length}>
+												<HoldingExpand row={row} />
+											</td>
+										</tr>
 									)}
-								</td>
-								<td className={pnlClass(row.returnRate)} data-label="수익률">
-									{formatPercent(row.returnRate, true)}
-								</td>
-								<td className={pnlClass(row.dailyPl)} data-label="오늘 손익">
-									<Amount value={row.dailyPl} currency={row.currency} signed />
-									<small>
-										{formatPercent(
-											ratio(row.dailyPl, row.evalAmount - row.dailyPl),
-											true,
-										)}
-									</small>
-								</td>
-								<td>
-									<Amount value={row.quantity} quantity />
-								</td>
-								<td>
-									<Amount value={row.avgPrice} currency={row.currency} />
-								</td>
-								<PriceCell row={row} fx={state.fx?.midRate} />
-								<td className={pnlClass(row.profitLoss)}>
-									<Amount
-										value={row.profitLoss}
-										currency={row.currency}
-										signed
-									/>
-								</td>
-								<td>{formatPercent(row.weight)}</td>
-							</tr>
-						))}
+								</Fragment>
+							);
+						})}
 					</tbody>
 				</table>
 				{!rows.length && (

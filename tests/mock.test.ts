@@ -1,7 +1,32 @@
 import { expect, it, vi } from "vitest";
 import { buildState, kstIso } from "../src/lib/compute";
-import { createMockRaw, createMockTrend, mockTicks } from "../src/server/mock";
+import {
+	createMockIntraday,
+	createMockRaw,
+	createMockTrend,
+	mockTicks,
+} from "../src/server/mock";
 import { NOW } from "./fixtures";
+
+it("generates deterministic intraday sessions anchored to the mock quote", () => {
+	const series = createMockIntraday("^IXIC", 18500.25, 125.25, NOW);
+	expect(series).toEqual(createMockIntraday("^IXIC", 18500.25, 125.25, NOW));
+	expect(createMockIntraday("^IXIC", 18500.25, 125.25, NOW + 1000)).not.toEqual(
+		series,
+	);
+	expect(series).toHaveLength(78);
+	expect(createMockIntraday("CL=F", 72.4, -0.6, NOW)).toHaveLength(264);
+	expect(series.at(-1)).toEqual({ t: NOW, v: 18500.25 });
+	expect(series[0].v).toBe(18500.25 - 125.25);
+	for (const [index, point] of series.entries()) {
+		expect(Number.isFinite(point.v)).toBe(true);
+		if (index === 0) continue;
+		expect(point.t - series[index - 1].t).toBe(300_000);
+	}
+	const flat = createMockIntraday("^GSPC", 5900.5, 0, NOW);
+	expect(flat[0].v).toBe(5900.5);
+	expect(flat.at(-1)?.v).toBe(5900.5);
+});
 
 it("generates repeatable mock ticks when a deterministic random source is supplied", () => {
 	const state = buildState(createMockRaw(NOW));

@@ -47,6 +47,7 @@ describe("portfolio service", () => {
 		if (!holdings || !krw || !usd || !fx) throw new Error();
 		const client = {
 			getCandles: vi.fn(async () => []),
+			getIntraday: vi.fn(async () => []),
 			listAccounts: vi.fn(async () => []),
 			getHoldings: vi.fn(async () => holdings),
 			getBuyingPower: vi.fn(async (_seq: number, currency: "KRW" | "USD") =>
@@ -114,6 +115,7 @@ describe("portfolio service", () => {
 		};
 		const client = {
 			getCandles: vi.fn(async () => []),
+			getIntraday: vi.fn(async () => []),
 			listAccounts: vi.fn(async () => []),
 			getHoldings: vi.fn(() =>
 				record(raw.holdings as NonNullable<typeof raw.holdings>),
@@ -192,6 +194,7 @@ describe("portfolio service", () => {
 		const raw = rawFixture();
 		const client = {
 			getCandles: vi.fn(async () => []),
+			getIntraday: vi.fn(async () => []),
 			listAccounts: vi.fn(async () => []),
 			getHoldings: vi.fn(async () => {
 				if (!raw.holdings) throw new Error();

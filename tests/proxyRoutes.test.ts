@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { GET as analytics } from "../src/routes/api/analytics";
 import { GET as health } from "../src/routes/api/health";
+import { GET as intraday } from "../src/routes/api/intraday";
 import { GET as logo } from "../src/routes/api/logo";
 import { GET as market } from "../src/routes/api/market";
 import { GET as portfolio } from "../src/routes/api/portfolio";
@@ -119,6 +120,51 @@ it("returns an empty sparkline route response for an older upstream without that
 	expect(response.headers.get("Cache-Control")).toBe("private, max-age=300");
 	expect(await response.json()).toEqual({});
 	expect(getPortfolioService).not.toHaveBeenCalled();
+});
+
+it("proxies held intraday symbols, validates payloads and degrades safely otherwise", async () => {
+	vi.stubEnv("TOSS_MOCK", "0");
+	vi.stubEnv("UPSTREAM_URL", "https://upstream.invalid");
+	const payload = {
+		previousClose: 198,
+		points: [{ t: "2026-10-29T14:00:00Z", close: 199 }],
+	};
+	const fetcher = vi.fn<typeof fetch>(async (input) => {
+		const url = new URL(String(input));
+		if (url.pathname === "/api/portfolio")
+			return Response.json({
+				holdings: [
+					{ symbol: "FAKEUS", name: "Fake" },
+					{ symbol: "FAKEKR", name: "Fake KR" },
+				],
+			});
+		if (
+			url.pathname === "/api/intraday" &&
+			url.searchParams.get("symbol") === "FAKEUS"
+		)
+			return Response.json(payload);
+		return new Response(null, { status: 404 });
+	});
+	vi.stubGlobal("fetch", fetcher);
+	const request = (symbol: string) =>
+		new Request(`http://preview.invalid/api/intraday?symbol=${symbol}`);
+	expect((await intraday({ request: request("UNKNOWN") })).status).toBe(404);
+	const forwarded = await intraday({ request: request("FAKEUS") });
+	expect(forwarded.status).toBe(200);
+	expect(await forwarded.json()).toEqual(payload);
+	const degraded = await intraday({ request: request("FAKEKR") });
+	expect(degraded.status).toBe(200);
+	expect(await degraded.json()).toEqual({ previousClose: null, points: [] });
+	expect(
+		fetcher.mock.calls.some(([url]) =>
+			String(url).includes("/api/intraday?symbol="),
+		),
+	).toBe(true);
+	expect(getPortfolioService).not.toHaveBeenCalled();
+	const fs = await import("node:fs/promises");
+	for (const module of [account, ledger, realtime, tokens, toss, fs])
+		for (const fn of Object.values(module))
+			if (vi.isMockFunction(fn)) expect(fn).not.toHaveBeenCalled();
 });
 
 it("routes every proxy API without constructing local services, accessing private files, or forwarding client headers", async () => {

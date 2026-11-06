@@ -3,19 +3,13 @@ import type {
 	AnalyticsData,
 	DatedClose,
 	HoldingRow,
+	IntradayData,
 	PortfolioState,
 	Sparklines,
 } from "../lib/types";
 import { type Config, type Now, readConfig } from "./config";
 import { finiteNumber, record } from "./parse";
 
-type JsonPath =
-	| "/api/targets"
-	| "/api/portfolio"
-	| "/api/trend"
-	| "/api/health"
-	| "/api/analytics"
-	| "/api/sparklines";
 type LogoHolding = Pick<HoldingRow, "symbol" | "name">;
 const noStore = { "Cache-Control": "no-store" };
 
@@ -36,7 +30,7 @@ export function createProxy(options: {
 	let held: { rows: LogoHolding[]; expires: number } | undefined;
 	let pendingHoldings: Promise<LogoHolding[]> | undefined;
 
-	async function readJson(path: JsonPath) {
+	async function readJson(path: string) {
 		const abort = new AbortController();
 		const timer = setTimeout(() => abort.abort(), 10_000);
 		try {
@@ -138,6 +132,31 @@ export function createProxy(options: {
 				);
 			} catch {
 				return {};
+			}
+		},
+		async getIntraday(symbol: string): Promise<IntradayData> {
+			const empty: IntradayData = { previousClose: null, points: [] };
+			try {
+				const { data } = await readJson(
+					`/api/intraday?symbol=${encodeURIComponent(symbol)}`,
+				);
+				const body = record(data);
+				const previousClose = finiteNumber(body.previousClose);
+				const points = Array.isArray(body.points)
+					? body.points.flatMap((value) => {
+							const point = record(value);
+							const close = finiteNumber(point.close);
+							const t = typeof point.t === "string" ? point.t : "";
+							return close !== null &&
+								close > 0 &&
+								Number.isFinite(Date.parse(t))
+								? [{ t, close }]
+								: [];
+						})
+					: [];
+				return { previousClose, points };
+			} catch {
+				return empty;
 			}
 		},
 		async getFx(): Promise<PortfolioState["fx"]> {

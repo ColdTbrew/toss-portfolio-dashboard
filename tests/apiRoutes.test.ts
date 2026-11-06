@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as health } from "../src/routes/api/health";
+import { GET as intraday } from "../src/routes/api/intraday";
 import { GET as logo } from "../src/routes/api/logo";
 import { GET as market } from "../src/routes/api/market";
 import { GET as portfolio } from "../src/routes/api/portfolio";
@@ -7,8 +8,10 @@ import { GET as sparklines } from "../src/routes/api/sparklines";
 import { GET as stream } from "../src/routes/api/stream";
 import { GET as trend } from "../src/routes/api/trend";
 import type { CandleCache } from "../src/server/candles";
+import type { IntradayService } from "../src/server/intraday";
 import type { LogoService } from "../src/server/logos";
 import type { MarketService } from "../src/server/market";
+import { createMockRaw } from "../src/server/mock";
 import {
 	getPortfolioService,
 	type PortfolioService,
@@ -35,6 +38,7 @@ const globals = globalThis as typeof globalThis & {
 	__tossMarket?: MarketService;
 	__tossSparklines?: SparklineService;
 	__tossCandles?: CandleCache;
+	__tossIntraday?: IntradayService;
 };
 beforeEach(() => {
 	vi.useFakeTimers();
@@ -55,6 +59,7 @@ afterEach(async () => {
 	delete globals.__tossMarket;
 	delete globals.__tossSparklines;
 	delete globals.__tossCandles;
+	delete globals.__tossIntraday;
 	vi.unstubAllEnvs();
 	vi.unstubAllGlobals();
 	vi.useRealTimers();
@@ -70,6 +75,32 @@ describe("server routes in mock mode", () => {
 		const prices = await market();
 		expect(prices.headers.get("Cache-Control")).toBe("private, max-age=30");
 		expect((await prices.json()).items).toHaveLength(5);
+		expect(globals.__tossPortfolioService).toBeUndefined();
+		expect(fetch).not.toHaveBeenCalled();
+		const fs = await import("node:fs/promises");
+		expect(fs.readFile).not.toHaveBeenCalled();
+		expect(fs.open).not.toHaveBeenCalled();
+		expect(fs.writeFile).not.toHaveBeenCalled();
+	});
+	it("serves deterministic held intraday series and rejects other symbols without network or portfolio startup", async () => {
+		const request = (symbol: string) =>
+			new Request(`http://preview.invalid/api/intraday?symbol=${symbol}`);
+		const first = await intraday({ request: request("FAKEK1") });
+		expect(first.status).toBe(200);
+		expect(first.headers.get("Cache-Control")).toBe("private, max-age=30");
+		const data = await first.json();
+		expect(data).toEqual(
+			await (await intraday({ request: request("FAKEK1") })).json(),
+		);
+		const item = createMockRaw().holdings?.items[0];
+		if (!item) throw new Error("Missing mock holding");
+		expect(data.points.at(-1).close).toBe(Number(item.lastPrice));
+		expect(data.previousClose).toBe(
+			Number(item.lastPrice) / (1 + Number(item.dailyProfitLoss.rate)),
+		);
+		expect(data.points.length).toBeGreaterThanOrEqual(78);
+		expect((await intraday({ request: request("UNKNOWN") })).status).toBe(404);
+		expect((await intraday({ request: request("") })).status).toBe(400);
 		expect(globals.__tossPortfolioService).toBeUndefined();
 		expect(fetch).not.toHaveBeenCalled();
 		const fs = await import("node:fs/promises");

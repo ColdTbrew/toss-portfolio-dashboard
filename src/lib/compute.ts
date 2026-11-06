@@ -4,6 +4,37 @@ export function kstIso(now = Date.now()): string {
 	return `${new Date(now + 9 * 60 * 60 * 1000).toISOString().slice(0, -1)}+09:00`;
 }
 
+/** UTC offset (minutes, + = ahead of UTC) of a time zone at an instant. */
+export function timeZoneOffsetMinutes(
+	timeZone: string,
+	epochMs: number,
+): number {
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone,
+		hourCycle: "h23",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+	}).formatToParts(new Date(epochMs));
+	const value = (type: string) =>
+		Number(parts.find((part) => part.type === type)?.value ?? 0);
+	return Math.round(
+		(Date.UTC(
+			value("year"),
+			value("month") - 1,
+			value("day"),
+			value("hour"),
+			value("minute"),
+			value("second"),
+		) -
+			epochMs) /
+			60_000,
+	);
+}
+
 export function ratio(amount: number, basis: number): number {
 	return basis === 0 ? 0 : amount / basis;
 }

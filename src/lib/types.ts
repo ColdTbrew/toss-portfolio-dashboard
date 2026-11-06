@@ -6,6 +6,20 @@ export interface DatedClose {
 	close: number;
 }
 export type BenchmarkSymbol = "^KS11" | "^GSPC" | "^IXIC";
+/** One intraday sample: epoch milliseconds and the value at that time. */
+export interface IntradayPoint {
+	t: number;
+	v: number;
+}
+/** Holding 1m bar; `t` is an ISO timestamp (exchange-local offset when present). */
+export interface TimedClose {
+	t: string;
+	close: number;
+}
+export interface IntradayData {
+	previousClose: number | null;
+	points: TimedClose[];
+}
 export interface AnalyticsData {
 	fetchedAt: string;
 	candles: Record<string, DatedClose[]>;
@@ -22,6 +36,10 @@ export interface MarketItem {
 	currency?: Currency;
 	asOf: string;
 	stale?: boolean;
+	/** Today's session samples for the mini chart, capped server-side. */
+	intraday?: IntradayPoint[];
+	/** Prior session close used as the intraday baseline, when known. */
+	previousClose?: number | null;
 }
 export interface MarketState {
 	items: MarketItem[];
