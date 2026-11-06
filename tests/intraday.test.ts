@@ -61,6 +61,28 @@ describe("parseTimedCandles", () => {
 			{ t: "2026-06-01T01:00:00Z", close: 11 },
 		]);
 	});
+	it("groups US bars onto the New York session regardless of timestamp offset", () => {
+		expect(
+			parseTimedCandles(
+				{
+					candles: [
+						{ close: 10, timestamp: "2026-06-01T22:30:00+09:00" },
+						{ close: 11, timestamp: "2026-06-02T00:00:00+09:00" },
+						{ close: 12, timestamp: "2026-06-02T02:00:00Z" },
+						{ close: 99, timestamp: "2026-06-02T02:00:00+00:00" },
+						{ close: 13, timestamp: "2026-06-02T02:30:00+00:00" },
+						{ close: 9, timestamp: "2026-06-01T03:00:00+09:00" },
+					],
+				},
+				"US",
+			),
+		).toEqual([
+			{ t: "2026-06-01T22:30:00+09:00", close: 10 },
+			{ t: "2026-06-02T00:00:00+09:00", close: 11 },
+			{ t: "2026-06-02T02:00:00Z", close: 12 },
+			{ t: "2026-06-02T02:30:00+00:00", close: 13 },
+		]);
+	});
 	it("dedupes timestamps and skips junk defensively", () => {
 		expect(
 			parseTimedCandles(

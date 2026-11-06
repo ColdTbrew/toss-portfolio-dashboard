@@ -71,16 +71,25 @@ export function parseCandleCloses(result: unknown): number[] {
 		.reverse();
 }
 
-// Intraday (1m) bars: parse to time-stamped points and keep only the most
-// recent trading session, i.e. the latest exchange-local date present.
-export function parseTimedCandles(
+const CANDLE_PAGE = 200;
+const INTRADAY_SESSION_PAGES = 6;
+
+type ParsedTimedClose = TimedClose & { epoch: number; date: string };
+
+function marketTimeZone(market: "KR" | "US"): string {
+	return market === "KR" ? "Asia/Seoul" : "America/New_York";
+}
+
+// Intraday (1m) bars: parse to time-stamped points. Session dates always come
+// from the exchange calendar so serialization offsets (Z vs +00:00 vs +09:00)
+// cannot split or drop a New York / Seoul trading day.
+function parseAllTimedCandles(
 	result: unknown,
-	market: "KR" | "US",
-): TimedClose[] {
+	timeZone: string,
+): ParsedTimedClose[] {
 	const candles = record(result).candles;
 	if (!Array.isArray(candles)) return [];
-	const timeZone = market === "KR" ? "Asia/Seoul" : "America/New_York";
-	const rows = new Map<number, TimedClose & { epoch: number; date: string }>();
+	const rows = new Map<number, ParsedTimedClose>();
 	for (const candle of candles) {
 		const row = record(candle);
 		const close = finiteNumber(row.closePrice) ?? finiteNumber(row.close);
@@ -93,19 +102,29 @@ export function parseTimedCandles(
 			rows.has(epoch)
 		)
 			continue;
-		// An explicit offset (Toss sends e.g. +09:00) already labels the bar's
-		// own calendar day; only UTC stamps are converted to the exchange date.
-		const date = /^\d{4}-\d{2}-\d{2}T[^Z]*[+-]\d{2}:?\d{2}$/.test(stamp)
-			? stamp.slice(0, 10)
-			: exchangeDate(epoch, timeZone);
+		const date = exchangeDate(epoch, timeZone);
 		if (!date) continue;
 		rows.set(epoch, { t: stamp, close, epoch, date });
 	}
-	const points = [...rows.values()].sort((a, b) => a.epoch - b.epoch);
+	return [...rows.values()].sort((a, b) => a.epoch - b.epoch);
+}
+
+export function parseTimedCandles(
+	result: unknown,
+	market: "KR" | "US",
+): TimedClose[] {
+	const points = parseAllTimedCandles(result, marketTimeZone(market));
 	const lastDate = points.at(-1)?.date;
 	return points
 		.filter((point) => point.date === lastDate)
 		.map(({ t, close }) => ({ t, close }));
+}
+
+function nextCandleBefore(result: unknown): string | null | undefined {
+	if (!("nextBefore" in record(result))) return undefined;
+	const value = record(result).nextBefore;
+	if (value === null) return null;
+	return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 export function createTossClient(options: {
@@ -238,14 +257,41 @@ export function createTossClient(options: {
 			);
 		},
 		async getIntraday(symbol, { count, market }) {
-			return parseTimedCandles(
-				await get(ALLOWED_ENDPOINTS.candles, {
+			const resolved = market ?? (/^\d{6}$/.test(symbol) ? "KR" : "US");
+			const timeZone = marketTimeZone(resolved);
+			const pageSize = Math.min(Math.max(count, 1), CANDLE_PAGE);
+			const rows = new Map<number, ParsedTimedClose>();
+			let sessionDate: string | undefined;
+			let before: string | undefined;
+			for (let page = 0; page < INTRADAY_SESSION_PAGES; page++) {
+				const query: Record<string, string> = {
 					symbol,
 					interval: "1m",
-					count: String(count),
-				}),
-				market ?? (/^\d{6}$/.test(symbol) ? "KR" : "US"),
-			);
+					count: String(pageSize),
+				};
+				if (before) query.before = before;
+				const result = await get(ALLOWED_ENDPOINTS.candles, query);
+				const parsed = parseAllTimedCandles(result, timeZone);
+				if (!parsed.length) break;
+				sessionDate ??= parsed.at(-1)?.date;
+				for (const point of parsed) {
+					if (point.date === sessionDate) rows.set(point.epoch, point);
+				}
+				const next = nextCandleBefore(result);
+				const cursor = next ?? parsed[0].t;
+				if (
+					parsed.some((point) => point.date < (sessionDate ?? "")) ||
+					parsed.length < pageSize ||
+					next === null ||
+					!cursor ||
+					cursor === before
+				)
+					break;
+				before = cursor;
+			}
+			return [...rows.values()]
+				.sort((a, b) => a.epoch - b.epoch)
+				.map(({ t, close }) => ({ t, close }));
 		},
 	};
 }
