@@ -192,4 +192,45 @@ describe("read-only REST client", () => {
 			"request failed or timed out",
 		);
 	});
+
+	it("pages 1m candles until the latest exchange session is covered", async () => {
+		const { client, request } = setup();
+		const open = Date.parse("2026-06-01T13:30:00Z");
+		const bars = Array.from({ length: 390 }, (_, index) => ({
+			close: 100 + index,
+			timestamp: new Date(open + index * 60_000).toISOString(),
+		}));
+		const newest = bars.slice(190).reverse();
+		const cursor = newest[newest.length - 1]?.timestamp;
+		const older = [
+			{ close: 1, timestamp: "2026-05-29T20:00:00Z" },
+			...bars.slice(0, 191).reverse(),
+		];
+		request
+			.mockResolvedValueOnce(
+				json({ result: { candles: newest, nextBefore: cursor } }),
+			)
+			.mockResolvedValueOnce(
+				json({ result: { candles: older, nextBefore: null } }),
+			);
+		const points = await client.getIntraday("FAKEUS", {
+			count: 200,
+			market: "US",
+		});
+		expect(points).toHaveLength(390);
+		expect(points[0]).toEqual({ t: bars[0].timestamp, close: 100 });
+		expect(points.at(-1)).toEqual({
+			t: bars[389].timestamp,
+			close: 489,
+		});
+		expect(request).toHaveBeenCalledTimes(2);
+		expect(
+			request.mock.calls.map(([input]) =>
+				Object.fromEntries(new URL(String(input)).searchParams),
+			),
+		).toEqual([
+			{ symbol: "FAKEUS", interval: "1m", count: "200" },
+			{ symbol: "FAKEUS", interval: "1m", count: "200", before: cursor },
+		]);
+	});
 });

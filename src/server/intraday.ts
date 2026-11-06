@@ -68,6 +68,8 @@ export function createIntradayService(options: {
 			points: [],
 		};
 		try {
+			// Toss caps each /candles page at 200; the client pages with
+			// `before` until the latest exchange session is covered.
 			const points = await options.getIntraday(holding.symbol, {
 				count: 200,
 				market: holding.market,
