@@ -28,7 +28,6 @@
   --modal-shadow: #00000040;
   --backdrop: #0000008c;
   --shadow: 0 3px 16px #191f2804;
-  --open-row: color-mix(in srgb, var(--accent) 6%, var(--hover));
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -45,7 +44,6 @@
   --chart-line: #4593fc;
   --border: #34343c;
   --hover: #2c2c35;
-  --open-row: color-mix(in srgb, var(--accent) 8%, var(--surface));
   --accent: #1b64da;
   --accent-hover: #1957c2;
   --focus: #64a8ff;
@@ -810,15 +808,7 @@ td small {
   outline: 3px solid var(--focus);
   outline-offset: -3px;
 }
-/* One continuous open band: data row + expand row share background, no card. */
-.holdings-panel tbody tr.holding-row-open,
-.holdings-panel tbody tr.holding-row-open > td,
-.holdings-panel tbody tr.holding-row-open > :first-child,
-.holdings-panel tbody tr.holding-expand-row,
-.holdings-panel tbody tr.holding-expand-row > td,
-.holdings-panel tbody tr.holding-expand-row > :first-child {
-  background: var(--open-row);
-}
+/* Expand stays flat / inline — no selection tint. */
 .holdings-panel tbody tr.holding-row-open > td {
   border-bottom-color: transparent;
 }
@@ -1309,13 +1299,9 @@ td small {
 .holdings-panel tbody tr:hover > :first-child {
   background: var(--hover);
 }
-.holdings-panel tbody tr.holding-row-open > :first-child,
-.holdings-panel tbody tr.holding-expand-row > :first-child,
-.holdings-panel tbody tr.holding-expand-row > td {
-  background: var(--open-row);
-}
 .holdings-panel tbody tr.holding-expand-row > td,
 .holdings-panel tbody tr.holding-expand-row > :first-child {
+  background: var(--surface);
   height: auto;
   position: static;
 }
