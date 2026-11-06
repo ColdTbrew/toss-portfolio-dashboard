@@ -1,6 +1,7 @@
 import { formatPercent } from "../lib/format";
 import type { MarketState } from "../lib/types";
 import { usePollingJson } from "../lib/usePollingJson";
+import { IntradaySpark } from "./IntradaySpark";
 import { pnlClass } from "./SummaryCards";
 
 const number = new Intl.NumberFormat("ko-KR", {
@@ -29,6 +30,11 @@ export function MarketStrip({ initial }: { initial?: MarketState }) {
 							? "—"
 							: formatPercent(item.changeRate, true)}
 					</p>
+					<IntradaySpark
+						points={item.intraday}
+						previousClose={item.previousClose ?? null}
+						tone={pnlClass(item.changeRate ?? 0)}
+					/>
 				</div>
 			))}
 		</section>

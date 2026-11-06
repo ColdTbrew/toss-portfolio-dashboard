@@ -1,6 +1,11 @@
-import type { MarketItem, MarketState, PortfolioState } from "../lib/types";
+import type {
+	IntradayPoint,
+	MarketItem,
+	MarketState,
+	PortfolioState,
+} from "../lib/types";
 import { type Now, readConfig } from "./config";
-import { createMockRaw } from "./mock";
+import { createMockIntraday, createMockRaw } from "./mock";
 import { finiteNumber, record } from "./parse";
 import { getProxy } from "./proxy";
 
@@ -11,6 +16,8 @@ const markets = [
 	{ id: "^KS11", label: "코스피" },
 	{ id: "CL=F", label: "WTI", currency: "USD" },
 ] as const;
+
+const INTRADAY_CAP = 120;
 
 export function parseYahooChart(
 	body: unknown,
@@ -51,6 +58,40 @@ export function parseYahooChart(
 	};
 }
 
+export function parseYahooIntraday(
+	body: unknown,
+	cap = INTRADAY_CAP,
+): { points: IntradayPoint[]; previousClose: number | null } | null {
+	const chart = record(record(body).chart);
+	if (chart.error) return null;
+	const result = Array.isArray(chart.result) ? record(chart.result[0]) : {};
+	const timestamps = Array.isArray(result.timestamp) ? result.timestamp : [];
+	const quotes = record(result.indicators).quote;
+	const closes = Array.isArray(quotes) ? record(quotes[0]).close : null;
+	const closeValues = Array.isArray(closes) ? closes : [];
+	const points: IntradayPoint[] = [];
+	for (let index = 0; index < timestamps.length; index++) {
+		const seconds = finiteNumber(timestamps[index]);
+		const value = finiteNumber(closeValues[index]);
+		if (seconds === null || value === null) continue;
+		points.push({ t: seconds * 1000, v: value });
+	}
+	if (points.length < 2) return null;
+	points.sort((a, b) => a.t - b.t);
+	const meta = record(result.meta);
+	const previousClose =
+		finiteNumber(meta.chartPreviousClose) ?? finiteNumber(meta.previousClose);
+	const capped =
+		points.length <= cap
+			? points
+			: Array.from(
+					{ length: cap },
+					(_, index) =>
+						points[Math.round((index * (points.length - 1)) / (cap - 1))],
+				);
+	return { points: capped, previousClose };
+}
+
 export function createMarketService(options: {
 	mock: boolean;
 	getFx: () => Promise<PortfolioState["fx"]>;
@@ -68,20 +109,26 @@ export function createMarketService(options: {
 		const fetchedAt = new Date(now()).toISOString();
 		const items = await Promise.all(
 			markets.map(async (market, index): Promise<MarketItem | null> => {
-				if (options.mock)
+				if (options.mock) {
+					const value = [18500.25, 5900.5, 2650.75, 72.4][index];
+					const change = [125.25, -20.5, 15.75, -0.6][index];
 					return {
 						...market,
-						value: [18500.25, 5900.5, 2650.75, 72.4][index],
-						change: [125.25, -20.5, 15.75, -0.6][index],
+						value,
+						change,
 						changeRate: [0.0068, -0.0035, 0.006, -0.0082][index],
 						asOf: fetchedAt,
+						intraday: createMockIntraday(market.id, value, change, now()),
+						previousClose: value - change,
 					};
+				}
 				const abort = new AbortController();
 				const timer = setTimeout(() => abort.abort(), 6000);
 				try {
-					// chartPreviousClose precedes the window; 1d gives the prior session's close.
+					// chartPreviousClose precedes the window; 1d covers today's session
+					// at 5m, feeding both the daily change and the intraday series.
 					const response = await request(
-						`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(market.id)}?range=1d&interval=1d`,
+						`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(market.id)}?range=1d&interval=5m`,
 						{
 							method: "GET",
 							headers: { "User-Agent": "Mozilla/5.0" },
@@ -91,9 +138,20 @@ export function createMarketService(options: {
 						},
 					);
 					if (!response.ok) throw new Error();
-					const parsed = parseYahooChart(await response.json(), fetchedAt);
+					const body = await response.json();
+					const parsed = parseYahooChart(body, fetchedAt);
 					if (!parsed) throw new Error();
-					const item = { ...market, ...parsed };
+					const intraday = parseYahooIntraday(body);
+					const item = {
+						...market,
+						...parsed,
+						...(intraday
+							? {
+									intraday: intraday.points,
+									previousClose: intraday.previousClose,
+								}
+							: {}),
+					};
 					lastGood.set(market.id, item);
 					return item;
 				} catch {

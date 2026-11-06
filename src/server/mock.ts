@@ -4,6 +4,7 @@ import type {
 	ByCcy,
 	DatedClose,
 	HoldingsItem,
+	IntradayPoint,
 	PortfolioState,
 	RawPortfolio,
 	Tick,
@@ -138,6 +139,37 @@ export function mockHistory(
 		date,
 		close: Number((last * Math.exp(level(i) - level(199))).toFixed(4)),
 	}));
+}
+
+export function createMockIntraday(
+	symbol: string,
+	last: number,
+	change: number | null,
+	now = Date.now(),
+): IntradayPoint[] {
+	const seed = Array.from(symbol).reduce(
+		(hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0,
+		0,
+	);
+	// 5-minute bars: 6.5h equity session (78), ~22h WTI session (264).
+	const points = symbol === "CL=F" ? 264 : 78;
+	const stepMs = 5 * 60_000;
+	const start = now - (points - 1) * stepMs;
+	const previous = change !== null ? last - change : last;
+	const wave = (i: number) =>
+		Math.sin(i / (3 + (seed % 5)) + (seed % 9)) * 0.0045 +
+		Math.cos(i * 1.7 + (seed % 13)) * 0.002;
+	return Array.from({ length: points }, (_, i) => {
+		const progress = i / (points - 1);
+		const drift = previous + (change ?? 0) * progress;
+		// Anchor both ends so the series runs previous -> last.
+		const oscillation =
+			previous * (wave(i) - wave(0) - progress * (wave(points - 1) - wave(0)));
+		return {
+			t: start + i * stepMs,
+			v: Number((drift + oscillation).toFixed(4)),
+		};
+	});
 }
 
 export function createMockTrend(now = Date.now()): TrendPoint[] {

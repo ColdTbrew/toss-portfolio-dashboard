@@ -314,6 +314,15 @@ h1 {
 .market-item.stale .market-value {
   color: var(--muted);
 }
+.market-intraday {
+  align-self: center;
+  flex: 0 0 auto;
+  display: block;
+}
+.market-intraday > line {
+  stroke: var(--muted);
+  opacity: 0.65;
+}
 .holding-sparkline {
   display: block;
   width: 56px;

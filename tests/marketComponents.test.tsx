@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { HoldingsTable } from "../src/components/HoldingsTable";
+import { IntradaySpark } from "../src/components/IntradaySpark";
 import { MarketStrip } from "../src/components/MarketStrip";
 import { MaskProvider } from "../src/components/MaskProvider";
 import { Sparkline } from "../src/components/Sparkline";
@@ -184,4 +185,103 @@ it("renders nothing until the first market response and retains data on refresh 
 	request.mockRejectedValue(new Error("Network unavailable"));
 	await act(() => vi.advanceTimersByTimeAsync(60_000));
 	expect(container.querySelectorAll(".market-item")).toHaveLength(3);
+});
+
+it("draws a coloured intraday chart per index with a baseline at the previous close", () => {
+	const withIntraday: MarketState = {
+		fetchedAt: "2026-10-29T00:00:00Z",
+		items: [
+			{
+				id: "^IXIC",
+				label: "나스닥",
+				value: 18600,
+				change: 100,
+				changeRate: 0.0054,
+				asOf: "2026-10-29T00:00:00Z",
+				previousClose: 18500,
+				intraday: [
+					{ t: 1, v: 18500 },
+					{ t: 2, v: 18560 },
+					{ t: 3, v: 18600 },
+				],
+			},
+			{
+				id: "^KS11",
+				label: "코스피",
+				value: 2600,
+				change: -10,
+				changeRate: -0.0038,
+				asOf: "2026-10-29T00:00:00Z",
+				previousClose: 2700,
+				intraday: [
+					{ t: 1, v: 2610 },
+					{ t: 2, v: 2605 },
+					{ t: 3, v: 2600 },
+				],
+			},
+			{
+				id: "USD/KRW",
+				label: "달러/원",
+				value: 1350.5,
+				currency: "KRW",
+				change: null,
+				changeRate: null,
+				asOf: "2026-10-29T00:00:00Z",
+			},
+		],
+	};
+	container.innerHTML = renderToStaticMarkup(
+		<MarketStrip initial={withIntraday} />,
+	);
+	const charts = container.querySelectorAll("svg.market-intraday");
+	expect(charts).toHaveLength(3);
+	expect(charts[0].classList.contains("profit")).toBe(true);
+	expect(charts[0].querySelector("polyline")).not.toBeNull();
+	expect(charts[0].querySelector("line")).not.toBeNull();
+	expect(charts[1].classList.contains("loss")).toBe(true);
+	expect(charts[1].querySelector("polyline")).not.toBeNull();
+	// 2700 sits outside the 2600-2610 session range, so no baseline is drawn.
+	expect(charts[1].querySelector("line")).toBeNull();
+	// FX keeps an empty, space-reserving slot.
+	expect(charts[2].classList.contains("neutral")).toBe(true);
+	expect(charts[2].querySelector("polyline")).toBeNull();
+	expect(charts[2].getAttribute("width")).toBe("76");
+	expect(charts[2].getAttribute("aria-hidden")).toBe("true");
+	expect(container.textContent).not.toContain("NaN");
+});
+
+it("reserves chart size for missing or degenerate intraday series", () => {
+	for (const props of [
+		{},
+		{ points: [] },
+		{ points: [{ t: 1, v: 5 }] },
+		{
+			points: [
+				{ t: Number.NaN, v: 5 },
+				{ t: 2, v: Number.NaN },
+			],
+		},
+	]) {
+		container.innerHTML = renderToStaticMarkup(
+			<IntradaySpark {...props} tone="neutral" />,
+		);
+		const svg = container.querySelector("svg");
+		expect(svg?.getAttribute("viewBox")).toBe("0 0 76 24");
+		expect(svg?.getAttribute("aria-hidden")).toBe("true");
+		expect(container.querySelector("polyline")).toBeNull();
+		expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
+	}
+	container.innerHTML = renderToStaticMarkup(
+		<IntradaySpark
+			points={[
+				{ t: 1, v: 5 },
+				{ t: 2, v: 6 },
+			]}
+			previousClose={Number.NaN}
+			tone="neutral"
+		/>,
+	);
+	expect(container.querySelector("polyline")).not.toBeNull();
+	expect(container.querySelector("line")).toBeNull();
+	expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
 });
