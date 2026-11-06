@@ -73,6 +73,11 @@ export function parseCandleCloses(result: unknown): number[] {
 
 const CANDLE_PAGE = 200;
 const INTRADAY_SESSION_PAGES = 6;
+const newYorkHour = new Intl.DateTimeFormat("en-US", {
+	timeZone: "America/New_York",
+	hour: "2-digit",
+	hourCycle: "h23",
+});
 
 type ParsedTimedClose = TimedClose & { epoch: number; date: string };
 
@@ -80,9 +85,8 @@ function marketTimeZone(market: "KR" | "US"): string {
 	return market === "KR" ? "Asia/Seoul" : "America/New_York";
 }
 
-// Intraday (1m) bars: parse to time-stamped points. Session dates always come
-// from the exchange calendar so serialization offsets (Z vs +00:00 vs +09:00)
-// cannot split or drop a New York / Seoul trading day.
+// Session dates follow the exchange time zone, regardless of timestamp offset.
+// US sessions start at 04:00; earlier bars extend the prior calendar day's session.
 function parseAllTimedCandles(
 	result: unknown,
 	timeZone: string,
@@ -102,8 +106,16 @@ function parseAllTimedCandles(
 			rows.has(epoch)
 		)
 			continue;
-		const date = exchangeDate(epoch, timeZone);
+		let date = exchangeDate(epoch, timeZone);
 		if (!date) continue;
+		if (
+			timeZone === "America/New_York" &&
+			Number(newYorkHour.format(epoch)) < 4
+		) {
+			const previous = new Date(`${date}T00:00:00Z`);
+			previous.setUTCDate(previous.getUTCDate() - 1);
+			date = previous.toISOString().slice(0, 10);
+		}
 		rows.set(epoch, { t: stamp, close, epoch, date });
 	}
 	return [...rows.values()].sort((a, b) => a.epoch - b.epoch);

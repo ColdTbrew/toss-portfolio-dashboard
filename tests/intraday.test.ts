@@ -83,6 +83,91 @@ describe("parseTimedCandles", () => {
 			{ t: "2026-06-02T02:30:00+00:00", close: 13 },
 		]);
 	});
+	it("keeps US pre-market, regular, after-hours and post-midnight bars together", () => {
+		expect(
+			parseTimedCandles(
+				{
+					candles: [
+						{ close: 15, timestamp: "2026-11-06T14:15:00+09:00" },
+						{ close: 14, timestamp: "2026-11-06T14:00:00+09:00" },
+						{ close: 13, timestamp: "2026-11-06T08:00:00+09:00" },
+						{ close: 12, timestamp: "2026-11-06T06:00:00+09:00" },
+						{ close: 11, timestamp: "2026-11-05T23:30:00+09:00" },
+						{ close: 10, timestamp: "2026-11-05T18:00:00+09:00" },
+						{ close: 9, timestamp: "2026-11-04T23:30:00+09:00" },
+					],
+				},
+				"US",
+			),
+		).toEqual([
+			{ t: "2026-11-05T18:00:00+09:00", close: 10 },
+			{ t: "2026-11-05T23:30:00+09:00", close: 11 },
+			{ t: "2026-11-06T06:00:00+09:00", close: 12 },
+			{ t: "2026-11-06T08:00:00+09:00", close: 13 },
+			{ t: "2026-11-06T14:00:00+09:00", close: 14 },
+			{ t: "2026-11-06T14:15:00+09:00", close: 15 },
+		]);
+	});
+	it.each([
+		["pre-market", []],
+		["regular hours", [{ t: "2026-11-06T23:30:00+09:00", close: 12 }]],
+	])("starts a new US session at 04:00 ET during %s", (_phase, regular) => {
+		const expected = [
+			{ t: "2026-11-06T18:00:00+09:00", close: 10 },
+			...regular,
+		];
+		expect(
+			parseTimedCandles(
+				{
+					candles: [
+						...expected.map(({ t, close }) => ({ timestamp: t, close })),
+						{ close: 9, timestamp: "2026-11-06T17:59:59+09:00" },
+						{ close: 8, timestamp: "2026-11-05T23:30:00+09:00" },
+					],
+				},
+				"US",
+			),
+		).toEqual(expected);
+	});
+	it.each([
+		[
+			"summer",
+			"2026-06-01T20:00:00Z",
+			"2026-06-02T07:59:00Z",
+			"2026-06-02T08:00:00Z",
+		],
+		[
+			"spring clock change",
+			"2026-03-07T21:00:00Z",
+			"2026-03-08T07:59:00Z",
+			"2026-03-08T08:00:00Z",
+		],
+		[
+			"autumn clock change",
+			"2026-10-31T20:00:00Z",
+			"2026-11-01T08:59:00Z",
+			"2026-11-01T09:00:00Z",
+		],
+		[
+			"year rollover",
+			"2026-12-31T21:00:00Z",
+			"2027-01-01T08:59:00Z",
+			"2027-01-01T09:00:00Z",
+		],
+	])("uses the local 04:00 boundary across %s", (_phase, previous, overnight, preMarket) => {
+		const candles = [
+			{ timestamp: previous, close: 10 },
+			{ timestamp: overnight, close: 11 },
+		];
+		expect(parseTimedCandles({ candles }, "US")).toEqual([
+			{ t: previous, close: 10 },
+			{ t: overnight, close: 11 },
+		]);
+		candles.push({ timestamp: preMarket, close: 12 });
+		expect(parseTimedCandles({ candles }, "US")).toEqual([
+			{ t: preMarket, close: 12 },
+		]);
+	});
 	it("dedupes timestamps and skips junk defensively", () => {
 		expect(
 			parseTimedCandles(
