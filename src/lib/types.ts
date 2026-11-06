@@ -120,6 +120,8 @@ export interface HoldingRow {
 export interface PortfolioState {
 	fetchedAt: string;
 	mock: boolean;
+	/** All holdings and cash are available and can be valued in KRW. */
+	valuationComplete: boolean;
 	fx: { midRate: number; buyRate: number; validFrom: string } | null;
 	cash: { krw: number; usd: number; totalKrw: number } | null;
 	holdings: HoldingRow[];

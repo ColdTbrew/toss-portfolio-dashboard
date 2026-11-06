@@ -182,6 +182,11 @@ export function RebalancePanel({
 				</p>
 			)}
 			<output className="status-message">{message}</output>
+			{!state.valuationComplete && (
+				<p className="status-message" aria-live="polite">
+					자산 평가에 필요한 정보가 없어 리밸런싱 계산을 표시할 수 없어요.
+				</p>
+			)}
 			<div className="analytics-content">
 				{!data ? (
 					<AnalyticsEmpty loading={!loadError}>

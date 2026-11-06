@@ -28,7 +28,8 @@ export function approximateShares(
 
 export function rebalance(state: PortfolioState, targets: TargetWeights) {
 	const total = state.totals.totalAssetsKrw;
-	const validTotal = Number.isFinite(total) && total > 0;
+	const validTotal =
+		state.valuationComplete && Number.isFinite(total) && total > 0;
 	const row = (
 		symbol: string,
 		name: string,
