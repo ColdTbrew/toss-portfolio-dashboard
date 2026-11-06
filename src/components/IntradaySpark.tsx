@@ -52,6 +52,7 @@ export function IntradaySpark({
 			width={WIDTH}
 			height={HEIGHT}
 			viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+			preserveAspectRatio="none"
 			aria-hidden="true"
 			focusable="false"
 		>

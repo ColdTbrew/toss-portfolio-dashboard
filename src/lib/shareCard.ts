@@ -4,11 +4,11 @@ import type { PortfolioState } from "./types";
 export const ALLOCATION_COLORS = [
 	"#3182f6",
 	"#fe9800",
-	"#a234c7",
-	"#ffc342",
 	"#90c2ff",
-	"#da9bef",
-	"#8b95a1",
+	"#ffc342",
+	"#1e4ea8",
+	"#6b7684",
+	"#b0b8c1",
 ];
 
 export function allocationSlices(state: PortfolioState) {

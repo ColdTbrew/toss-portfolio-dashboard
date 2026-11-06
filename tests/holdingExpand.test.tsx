@@ -87,9 +87,13 @@ it("expands the row inline on click and Enter, fetching that symbol's intraday",
 		"/api/intraday?symbol=FAKEUS",
 	]);
 	await act(async () => {});
-	expect(expand()?.textContent).toContain("$200.00");
-	expect(expand()?.textContent).toContain("+$1.00");
-	expect(expand()?.textContent).toContain("(+1.01%)");
+	// Only facts the row lacks: previous close + day high/low (no price header).
+	const meta = expand()?.querySelector(".holding-expand-meta");
+	expect(meta?.textContent).toContain("전일 종가");
+	expect(meta?.textContent).toContain("고가");
+	expect(meta?.textContent).toContain("저가");
+	expect(expand()?.querySelector(".holding-expand-price")).toBeNull();
+	expect(row?.querySelector(".row-chevron")).toBeTruthy();
 
 	// Toggle closes; no drawer ever appears.
 	await toggleRow(0, "click");
@@ -113,22 +117,26 @@ it("expands the row inline on click and Enter, fetching that symbol's intraday",
 	expect(container.querySelectorAll(".holding-expand-row")).toHaveLength(1);
 });
 
-it("shows the info grid and masks amounts while keeping the market price", async () => {
+it("drops facts the row already shows and keeps market prices unmasked", async () => {
 	localStorage.setItem("tpd:maskAmounts", "true");
 	const state = buildState(rawFixture(), { now: NOW });
 	root = createRoot(container);
 	await render(state);
 	await toggleRow();
 	await act(async () => {});
-	const facts = expand()?.querySelector(".holding-expand-facts");
-	expect(facts?.textContent).toContain("수량");
-	expect(facts?.textContent).toContain("평균 단가");
-	expect(facts?.textContent).toContain("평가 금액");
-	expect(facts?.textContent).toContain("평가 손익");
-	expect(facts?.textContent).toContain("비중");
-	expect(facts?.textContent).toContain("오늘 손익");
-	expect(facts?.textContent).toContain("•••••");
-	expect(expand()?.textContent).toContain("$200.00");
+	expect(expand()?.querySelector(".holding-expand-facts")).toBeNull();
+	const text = expand()?.textContent ?? "";
+	for (const label of [
+		"수량",
+		"평균 단가",
+		"평가 금액",
+		"평가 손익",
+		"비중",
+		"오늘 손익",
+	])
+		expect(text).not.toContain(label);
+	expect(text).not.toContain("•••••");
+	expect(text).toContain("$9,900.00");
 });
 
 it("refreshes the intraday series while expanded and stops after collapse", async () => {

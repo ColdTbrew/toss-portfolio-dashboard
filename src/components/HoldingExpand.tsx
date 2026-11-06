@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import {
 	Area,
 	AreaChart,
@@ -9,11 +9,10 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import { ratio } from "../lib/compute";
-import { formatMoney, formatPercent } from "../lib/format";
+import { formatMoney } from "../lib/format";
+import { chartSeries, dayRange, roundTicks } from "../lib/intradayChart";
 import type { HoldingRow, IntradayData } from "../lib/types";
 import { usePollingJson } from "../lib/usePollingJson";
-import { Amount } from "./Amount";
 import { pnlClass } from "./SummaryCards";
 
 const compact = new Intl.NumberFormat("ko-KR", {
@@ -21,17 +20,34 @@ const compact = new Intl.NumberFormat("ko-KR", {
 	maximumFractionDigits: 1,
 });
 
+const MOBILE_QUERY = "(max-width: 640px)";
+
+function useIsMobile() {
+	const [mobile, setMobile] = useState(false);
+	useEffect(() => {
+		if (typeof matchMedia !== "function") return;
+		const query = matchMedia(MOBILE_QUERY);
+		const update = () => setMobile(query.matches);
+		update();
+		query.addEventListener("change", update);
+		return () => query.removeEventListener("change", update);
+	}, []);
+	return mobile;
+}
+
 export function HoldingExpand({ row }: { row: HoldingRow }) {
 	const gradientId = useId().replaceAll(":", "");
 	const data = usePollingJson<IntradayData>(
 		`/api/intraday?symbol=${encodeURIComponent(row.symbol)}`,
 		60_000,
 	);
-	const points = data?.points ?? [];
+	const isMobile = useIsMobile();
+	const raw = data?.points ?? [];
+	const points = chartSeries(raw);
+	const range = dayRange(raw);
 	const previousClose =
 		data?.previousClose ??
 		(row.quantity > 0 ? row.lastPrice - row.dailyPl / row.quantity : null);
-	const dayRate = ratio(row.dailyPl, row.evalAmount - row.dailyPl);
 	const tone = pnlClass(row.dailyPl);
 	const stroke =
 		tone === "profit"
@@ -44,33 +60,62 @@ export function HoldingExpand({ row }: { row: HoldingRow }) {
 		timeZone,
 		hour: "2-digit",
 		minute: "2-digit",
-		hour12: false,
+		hourCycle: "h23",
 	});
 	const formatTime = (iso: string) => timeFormat.format(new Date(iso));
+	const minuteOfDay = (iso: string) => {
+		const [hour = 0, minute = 0] = formatTime(iso).split(":").map(Number);
+		return hour * 60 + minute;
+	};
+	const ticks = roundTicks(points, isMobile ? 4 : 7, minuteOfDay);
 	const closes = points.map((point) => point.close);
-	const low = closes.length
-		? Math.min(...closes, previousClose ?? Infinity)
-		: 0;
-	const high = closes.length
-		? Math.max(...closes, previousClose ?? -Infinity)
-		: 1;
+	const low = Math.min(
+		...closes,
+		range?.low ?? Infinity,
+		previousClose ?? Infinity,
+	);
+	const high = Math.max(
+		...closes,
+		range?.high ?? -Infinity,
+		previousClose ?? -Infinity,
+	);
 	const pad = (high - low) * 0.1 || high * 0.01 || 1;
+	const money = (value: number) => formatMoney(value, row.currency);
+	const axisTick = { fontSize: 11, fill: "var(--chart-axis)" };
 	return (
 		<div className="holding-expand">
-			<p className="holding-expand-price">
-				<small>현재가</small>
-				<strong>{formatMoney(row.lastPrice, row.currency)}</strong>
-				<span className={`holding-expand-change ${tone}`}>
-					<Amount value={row.dailyPl} currency={row.currency} signed />
-					{` (${formatPercent(dayRate, true)})`}
-				</span>
-			</p>
+			<div className="holding-expand-head">
+				<dl className="holding-expand-meta">
+					{previousClose !== null && (
+						<div>
+							<dt>전일 종가</dt>
+							<dd>{money(previousClose)}</dd>
+						</div>
+					)}
+					{range && (
+						<>
+							<div>
+								<dt>고가</dt>
+								<dd>{money(range.high)}</dd>
+							</div>
+							<div>
+								<dt>저가</dt>
+								<dd>{money(range.low)}</dd>
+							</div>
+						</>
+					)}
+				</dl>
+				<p className="holding-expand-basis">
+					{raw.length > points.length ? "5분 단위" : "1분 단위"} ·{" "}
+					{row.market === "KR" ? "한국" : "뉴욕"} 시각
+				</p>
+			</div>
 			{points.length >= 2 ? (
 				<div className="chart-frame holding-expand-chart">
 					<ResponsiveContainer width="100%" height="100%">
 						<AreaChart
 							data={points}
-							margin={{ top: 12, right: 8, left: 4, bottom: 4 }}
+							margin={{ top: 8, right: 18, left: 0, bottom: 0 }}
 							accessibilityLayer
 						>
 							<defs>
@@ -86,24 +131,26 @@ export function HoldingExpand({ row }: { row: HoldingRow }) {
 							/>
 							<XAxis
 								dataKey="t"
+								ticks={ticks}
+								interval={0}
 								tickFormatter={formatTime}
-								minTickGap={40}
-								tick={{ fontSize: 12, fill: "var(--muted)" }}
+								tick={axisTick}
 								axisLine={false}
 								tickLine={false}
 							/>
 							<YAxis
 								domain={[low - pad, high + pad]}
-								width={52}
+								width={48}
+								tickCount={4}
 								tickFormatter={(value) => compact.format(Number(value))}
-								tick={{ fontSize: 12, fill: "var(--muted)" }}
+								tick={axisTick}
 								axisLine={false}
 								tickLine={false}
 							/>
 							<Tooltip
 								itemStyle={{ color: "var(--text)" }}
 								labelStyle={{ color: "var(--muted)" }}
-								formatter={(value) => formatMoney(Number(value), row.currency)}
+								formatter={(value) => money(Number(value))}
 								labelFormatter={(iso) => formatTime(String(iso))}
 								contentStyle={{
 									background: "var(--surface)",
@@ -144,52 +191,6 @@ export function HoldingExpand({ row }: { row: HoldingRow }) {
 						: "오늘의 체결 추이를 불러오는 중…"}
 				</p>
 			)}
-			<p className="chart-note">
-				오늘 1분 간격 체결가 · {row.market === "KR" ? "한국" : "미국(뉴욕)"}{" "}
-				시각 기준
-			</p>
-			<dl className="holding-expand-facts">
-				<div>
-					<dt>수량</dt>
-					<dd>
-						<Amount value={row.quantity} quantity />
-					</dd>
-				</div>
-				<div>
-					<dt>평균 단가</dt>
-					<dd>
-						<Amount value={row.avgPrice} currency={row.currency} />
-					</dd>
-				</div>
-				<div>
-					<dt>평가 금액</dt>
-					<dd>
-						<Amount value={row.evalAmount} currency={row.currency} />
-						{row.currency === "USD" && (
-							<small>
-								<Amount value={row.evalKrw} />
-							</small>
-						)}
-					</dd>
-				</div>
-				<div>
-					<dt>평가 손익</dt>
-					<dd className={pnlClass(row.profitLoss)}>
-						<Amount value={row.profitLoss} currency={row.currency} signed />
-						<small>{formatPercent(row.returnRate, true)}</small>
-					</dd>
-				</div>
-				<div>
-					<dt>비중</dt>
-					<dd>{formatPercent(row.weight)}</dd>
-				</div>
-				<div>
-					<dt>오늘 손익</dt>
-					<dd className={pnlClass(row.dailyPl)}>
-						<Amount value={row.dailyPl} currency={row.currency} signed />
-					</dd>
-				</div>
-			</dl>
 		</div>
 	);
 }
