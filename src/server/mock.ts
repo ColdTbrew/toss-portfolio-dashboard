@@ -28,11 +28,22 @@ export function createMockTargets(): TargetsDocument {
 }
 
 export function createMockRaw(now = Date.now()): RawPortfolio {
+	// Stress rows for mobile layout: fractional US quantities and a large KR position.
+	const stress: Record<
+		number,
+		{ quantity: number; average: number; lastRatio?: number }
+	> = {
+		5: { quantity: 1234, average: 812345, lastRatio: 2.1234 },
+		6: { quantity: 51.141929, average: 323.86 },
+		7: { quantity: 37.028539, average: 111.15 },
+		8: { quantity: 2.339311, average: 1071.21 },
+	};
 	const items: HoldingsItem[] = Array.from({ length: 12 }, (_, i) => {
 		const domestic = i < 6;
-		const quantity = 8 + i * 3;
-		const average = domestic ? 24000 + i * 12000 : 55 + (i - 6) * 42;
-		const last = average * (1 + ((i % 4) - 1) * 0.08);
+		const quantity = stress[i]?.quantity ?? 8 + i * 3;
+		const average =
+			stress[i]?.average ?? (domestic ? 24000 + i * 12000 : 55 + (i - 6) * 42);
+		const last = average * (stress[i]?.lastRatio ?? 1 + ((i % 4) - 1) * 0.08);
 		const amount = quantity * last;
 		const purchase = quantity * average;
 		const pnl = amount - purchase;
