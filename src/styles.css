@@ -1241,6 +1241,7 @@ td small {
   color: var(--text);
 }
 .holdings-mobile-tools,
+.mobile-holding-pl,
 .mobile-holding-details {
   display: none;
 }
@@ -1491,8 +1492,8 @@ td small {
   .holdings-panel tbody tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) max-content;
-    gap: 4px 8px;
-    padding: 6px 0;
+    gap: 2px 8px;
+    padding: 4px 0;
     border-bottom: 1px solid var(--border);
   }
   .holdings-panel tbody tr:last-child {
@@ -1514,22 +1515,26 @@ td small {
     grid-column: 2;
     grid-row: 1;
   }
-  .holdings-panel td:nth-child(3) {
-    grid-column: 1;
-    grid-row: 2;
-  }
+  .holdings-panel td:nth-child(3),
   .holdings-panel td:nth-child(4) {
-    display: grid;
-    grid-template-columns: auto auto;
-    grid-column: 2;
-    grid-row: 2;
-    align-items: baseline;
-    column-gap: 4px;
+    display: none;
   }
-  .holdings-panel td[data-label]::before {
-    content: attr(data-label);
-    display: block;
+  .mobile-holding-pl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-column: 1 / -1;
+    grid-row: 2;
+    column-gap: 8px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .mobile-holding-pl > [data-pl-group] {
+    display: grid;
+    grid-template-rows: repeat(3, 16px);
+    white-space: nowrap;
+  }
+  .mobile-holding-pl [data-pl="label"] {
+    margin: 0;
     color: var(--muted);
     font-size: 12px;
     font-weight: 400;
@@ -1554,7 +1559,6 @@ td small {
     grid-column: 1 / -1;
     grid-row: 3;
     gap: 4px 8px;
-    padding-top: 4px;
     color: var(--muted);
     font-size: 12px;
     line-height: 16px;
@@ -1573,10 +1577,6 @@ td small {
   }
   .mobile-holding-details .amount {
     color: var(--text);
-  }
-  .mobile-holding-details .profit .amount,
-  .mobile-holding-details .loss .amount {
-    color: inherit;
   }
 }
 @media (max-width: 600px) {
