@@ -269,6 +269,38 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 													/>
 												</svg>
 											</div>
+											<div className="mobile-holding-pl">
+												{(
+													[
+														[
+															"daily",
+															"당일 수익",
+															ratio(row.dailyPl, row.evalAmount - row.dailyPl),
+															row.dailyPl,
+														],
+														[
+															"total",
+															"총 수익",
+															row.returnRate,
+															row.profitLoss,
+														],
+													] as const
+												).map(([group, label, rate, amount]) => (
+													<div key={group} data-pl-group={group}>
+														<small data-pl="label">{label}</small>
+														<span data-pl="rate" className={pnlClass(rate)}>
+															{formatPercent(rate, true)}
+														</span>
+														<span data-pl="amount" className={pnlClass(amount)}>
+															<Amount
+																value={amount}
+																currency={row.currency}
+																signed
+															/>
+														</span>
+													</div>
+												))}
+											</div>
 											<div className="mobile-holding-details">
 												<span>
 													<small>수량</small>
@@ -282,14 +314,6 @@ export function HoldingsTable({ state }: { state: PortfolioState }) {
 													/>
 												</span>
 												<MobilePrice row={row} />
-												<span className={pnlClass(row.profitLoss)}>
-													<small>손익</small>
-													<Amount
-														value={row.profitLoss}
-														currency={row.currency}
-														signed
-													/>
-												</span>
 												<span>
 													<small>비중</small>
 													{formatPercent(row.weight)}
