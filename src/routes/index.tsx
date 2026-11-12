@@ -9,6 +9,7 @@ import { MarketStrip } from "../components/MarketStrip";
 import { useMask } from "../components/MaskProvider";
 import { PnlBarChart } from "../components/PnlBarChart";
 import { PrincipalChart } from "../components/PrincipalChart";
+import { RealizedPanel } from "../components/RealizedPanel";
 import { ShareModal } from "../components/ShareModal";
 import { SummaryCards } from "../components/SummaryCards";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -217,6 +218,7 @@ function Dashboard() {
 						<PnlBarChart state={state} />
 					</div>
 				</div>
+				<RealizedPanel />
 				<div className="charts-grid">
 					<TrendChart points={trend} />
 					<PrincipalChart totals={state.totals} points={trend} />

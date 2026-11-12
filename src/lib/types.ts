@@ -149,3 +149,54 @@ export interface TrendPoint {
 	purchaseKrw: number;
 	returnRate: number;
 }
+
+export type RealizedPeriod = "day" | "week" | "month" | "year";
+
+export interface RealizedTotal {
+	realizedKrw: number;
+	costKrw: number;
+	rate: number;
+	sellCount: number;
+	pendingKrw: number;
+	/** Native currency P/L, before KRW conversion. */
+	byCcy: { KRW: number; USD: number };
+	estimated: boolean;
+}
+
+export interface RealizedBucket {
+	key: string;
+	label: string;
+	realizedKrw: number;
+	rate: number;
+	estimated: boolean;
+}
+
+export interface RealizedSymbol {
+	symbol: string;
+	name: string;
+	market: "KR" | "US";
+	currency: "KRW" | "USD";
+	quantity: number;
+	/** Native currency P/L. */
+	realized: number;
+	realizedKrw: number;
+	rate: number;
+	/** Null for KRW, mixed FX rates, or estimated FX. */
+	fxRate: number | null;
+	fxEstimated: boolean;
+	pending: boolean;
+	lastSellDate: string;
+	sellCount: number;
+	costKrw: number;
+	/** Only the pending sells within this symbol group. */
+	pendingKrw: number;
+}
+
+export interface RealizedData {
+	asOf: string;
+	/** KST settlement date; today's unsettled sells are included as pending. */
+	basis: "settlement";
+	totals: Record<RealizedPeriod, RealizedTotal>;
+	buckets: Record<RealizedPeriod, RealizedBucket[]>;
+	bySymbol: Record<RealizedPeriod, RealizedSymbol[]>;
+}

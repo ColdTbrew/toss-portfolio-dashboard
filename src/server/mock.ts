@@ -7,6 +7,10 @@ import type {
 	IntradayPoint,
 	PortfolioState,
 	RawPortfolio,
+	RealizedData,
+	RealizedPeriod,
+	RealizedSymbol,
+	RealizedTotal,
 	Tick,
 	TimedClose,
 	TrendPoint,
@@ -300,4 +304,179 @@ export function mockTicks(
 		),
 		timestamp: kstIso(now),
 	}));
+}
+
+// All fixtures are fictional. UTC arithmetic below represents KST calendar dates.
+export function createMockRealized(now = Date.now()): RealizedData {
+	const dayMs = 86_400_000;
+	const today = Date.parse(`${kstIso(now).slice(0, 10)}T00:00:00Z`);
+	const dateKey = (time: number) => new Date(time).toISOString().slice(0, 10);
+	const startOf = (time: number, period: RealizedPeriod): number => {
+		const date = new Date(time);
+		if (period === "week")
+			date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+		if (period === "month" || period === "year") date.setUTCDate(1);
+		if (period === "year") date.setUTCMonth(0);
+		return date.getTime();
+	};
+	const raw = createMockRaw(now);
+	const items = raw.holdings?.items ?? [];
+	const mid = Number(raw.fx?.midRate ?? 1350);
+	// Twelve recent sells, with repeat symbols and deliberately empty days.
+	const fixtures = [0, 0, 2, 4, 6, 8, 11, 14, 18, 21, 25, 28].map(
+		(offset, i) => ({
+			settlement: today - offset * dayMs,
+			itemIndex: [0, 6, 1, 7, 0, 8, 2, 9, 3, 10, 4, 11][i],
+		}),
+	);
+	// A few sells each earlier month, spanning over three years. Avoid adding
+	// more sells to the recent 30-day window, even at month/year boundaries.
+	for (let month = 1; month <= 36; month++) {
+		for (const [i, day] of [1, 5, 9].entries()) {
+			const date = new Date(startOf(today, "month"));
+			date.setUTCMonth(date.getUTCMonth() - month);
+			date.setUTCDate(day);
+			if (date.getTime() <= today - 30 * dayMs)
+				fixtures.push({
+					settlement: date.getTime(),
+					itemIndex: (month * 3 + i) % items.length,
+				});
+		}
+	}
+	const sells = fixtures.map(({ settlement, itemIndex }, i) => {
+		const item = items[itemIndex];
+		const usd = item.currency === "USD";
+		const pending = i === 1;
+		const fxRate = usd && !pending ? 1320 + (i % 15) * 3 : null;
+		const conversion = usd ? (fxRate ?? mid) : 1;
+		// Amounts are native to the selected holding, never to its fixture index.
+		const realized = usd
+			? [82.5, 125, -32, -68.5, 215, -47.5][i % 6]
+			: [48600, 125000, -21000, -74500, 96500, -31500][i % 6];
+		const quantity = usd ? 3.125 + (i % 8) : 8 + (i % 12);
+		const costKrw = Math.round(
+			Number(item.averagePurchasePrice) * quantity * conversion,
+		);
+		const realizedKrw = Math.round(realized * conversion);
+		return {
+			symbol: item.symbol,
+			name: item.name,
+			market: item.marketCountry,
+			currency: item.currency,
+			quantity,
+			realized,
+			realizedKrw,
+			rate: realizedKrw / costKrw,
+			fxRate,
+			fxEstimated: pending,
+			pending,
+			sellDate: dateKey(settlement - (pending ? 0 : 2) * dayMs),
+			settlement,
+			costKrw,
+		};
+	});
+	const summarize = (rows: typeof sells): RealizedTotal => {
+		const realizedKrw = rows.reduce((sum, row) => sum + row.realizedKrw, 0);
+		const costKrw = rows.reduce((sum, row) => sum + row.costKrw, 0);
+		return {
+			realizedKrw,
+			costKrw,
+			rate: costKrw ? realizedKrw / costKrw : 0,
+			sellCount: rows.length,
+			pendingKrw: rows.reduce(
+				(sum, row) => sum + (row.pending ? row.realizedKrw : 0),
+				0,
+			),
+			byCcy: {
+				KRW: rows
+					.filter((row) => row.currency === "KRW")
+					.reduce((sum, row) => sum + row.realized, 0),
+				USD: rows
+					.filter((row) => row.currency === "USD")
+					.reduce((sum, row) => sum + row.realized, 0),
+			},
+			estimated: rows.some((row) => row.fxEstimated),
+		};
+	};
+	const data: RealizedData = {
+		asOf: new Date(now).toISOString(),
+		basis: "settlement",
+		totals: {} as RealizedData["totals"],
+		buckets: {} as RealizedData["buckets"],
+		bySymbol: {} as RealizedData["bySymbol"],
+	};
+	for (const period of ["day", "week", "month", "year"] as const) {
+		const current = startOf(today, period);
+		const rows = sells.filter(
+			(row) => startOf(row.settlement, period) === current,
+		);
+		data.totals[period] = summarize(rows);
+		const grouped = new Map<string, RealizedSymbol>();
+		for (const row of rows) {
+			const existing = grouped.get(row.symbol);
+			if (!existing) {
+				const { settlement: _settlement, sellDate, ...values } = row;
+				grouped.set(row.symbol, {
+					...values,
+					lastSellDate: sellDate,
+					sellCount: 1,
+					pendingKrw: row.pending ? row.realizedKrw : 0,
+				});
+				continue;
+			}
+			existing.quantity += row.quantity;
+			existing.realized += row.realized;
+			existing.realizedKrw += row.realizedKrw;
+			existing.costKrw += row.costKrw;
+			existing.rate = existing.realizedKrw / existing.costKrw;
+			existing.sellCount++;
+			if (row.sellDate > existing.lastSellDate)
+				existing.lastSellDate = row.sellDate;
+			existing.pending ||= row.pending;
+			existing.pendingKrw += row.pending ? row.realizedKrw : 0;
+			existing.fxEstimated ||= row.fxEstimated;
+			if (existing.fxEstimated || existing.fxRate !== row.fxRate)
+				existing.fxRate = null;
+		}
+		data.bySymbol[period] = [...grouped.values()];
+		const count =
+			period === "day"
+				? 30
+				: period === "year"
+					? new Date(today).getUTCFullYear() -
+						new Date(sells.at(-1)?.settlement ?? today).getUTCFullYear() +
+						1
+					: 12;
+		data.buckets[period] = Array.from({ length: count }, (_, i) => {
+			const date = new Date(current);
+			const offset = count - 1 - i;
+			if (period === "day" || period === "week")
+				date.setUTCDate(
+					date.getUTCDate() - offset * (period === "week" ? 7 : 1),
+				);
+			if (period === "month") date.setUTCMonth(date.getUTCMonth() - offset);
+			if (period === "year")
+				date.setUTCFullYear(date.getUTCFullYear() - offset);
+			const key = dateKey(date.getTime());
+			const total = summarize(
+				sells.filter(
+					(row) => startOf(row.settlement, period) === date.getTime(),
+				),
+			);
+			const label =
+				period === "year"
+					? key.slice(0, 4)
+					: period === "month"
+						? key.slice(0, 7)
+						: `${date.getUTCMonth() + 1}/${date.getUTCDate()}${period === "week" ? " 주" : ""}`;
+			return {
+				key,
+				label,
+				realizedKrw: total.realizedKrw,
+				rate: total.rate,
+				estimated: total.estimated,
+			};
+		});
+	}
+	return data;
 }

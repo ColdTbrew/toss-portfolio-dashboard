@@ -16,6 +16,7 @@ import { Route as ApiIntradayRouteImport } from './routes/api/intraday'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMarketRouteImport } from './routes/api/market'
 import { Route as ApiPortfolioRouteImport } from './routes/api/portfolio'
+import { Route as ApiRealizedRouteImport } from './routes/api/realized'
 import { Route as ApiSparklinesRouteImport } from './routes/api/sparklines'
 import { Route as ApiStreamRouteImport } from './routes/api/stream'
 import { Route as ApiTargetsRouteImport } from './routes/api/targets'
@@ -56,6 +57,11 @@ const ApiPortfolioRoute = ApiPortfolioRouteImport.update({
   path: '/api/portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRealizedRoute = ApiRealizedRouteImport.update({
+  id: '/api/realized',
+  path: '/api/realized',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSparklinesRoute = ApiSparklinesRouteImport.update({
   id: '/api/sparklines',
   path: '/api/sparklines',
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/api/logo': typeof ApiLogoRoute
   '/api/market': typeof ApiMarketRoute
   '/api/portfolio': typeof ApiPortfolioRoute
+  '/api/realized': typeof ApiRealizedRoute
   '/api/sparklines': typeof ApiSparklinesRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/targets': typeof ApiTargetsRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/api/logo': typeof ApiLogoRoute
   '/api/market': typeof ApiMarketRoute
   '/api/portfolio': typeof ApiPortfolioRoute
+  '/api/realized': typeof ApiRealizedRoute
   '/api/sparklines': typeof ApiSparklinesRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/targets': typeof ApiTargetsRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/api/logo': typeof ApiLogoRoute
   '/api/market': typeof ApiMarketRoute
   '/api/portfolio': typeof ApiPortfolioRoute
+  '/api/realized': typeof ApiRealizedRoute
   '/api/sparklines': typeof ApiSparklinesRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/targets': typeof ApiTargetsRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/api/logo'
     | '/api/market'
     | '/api/portfolio'
+    | '/api/realized'
     | '/api/sparklines'
     | '/api/stream'
     | '/api/targets'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/api/logo'
     | '/api/market'
     | '/api/portfolio'
+    | '/api/realized'
     | '/api/sparklines'
     | '/api/stream'
     | '/api/targets'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/api/logo'
     | '/api/market'
     | '/api/portfolio'
+    | '/api/realized'
     | '/api/sparklines'
     | '/api/stream'
     | '/api/targets'
@@ -167,6 +179,7 @@ export interface RootRouteChildren {
   ApiLogoRoute: typeof ApiLogoRoute
   ApiMarketRoute: typeof ApiMarketRoute
   ApiPortfolioRoute: typeof ApiPortfolioRoute
+  ApiRealizedRoute: typeof ApiRealizedRoute
   ApiSparklinesRoute: typeof ApiSparklinesRoute
   ApiStreamRoute: typeof ApiStreamRoute
   ApiTargetsRoute: typeof ApiTargetsRoute
@@ -224,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/realized': {
+      id: '/api/realized'
+      path: '/api/realized'
+      fullPath: '/api/realized'
+      preLoaderRoute: typeof ApiRealizedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/sparklines': {
       id: '/api/sparklines'
       path: '/api/sparklines'
@@ -263,6 +283,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLogoRoute: ApiLogoRoute,
   ApiMarketRoute: ApiMarketRoute,
   ApiPortfolioRoute: ApiPortfolioRoute,
+  ApiRealizedRoute: ApiRealizedRoute,
   ApiSparklinesRoute: ApiSparklinesRoute,
   ApiStreamRoute: ApiStreamRoute,
   ApiTargetsRoute: ApiTargetsRoute,
