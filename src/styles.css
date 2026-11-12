@@ -1733,7 +1733,8 @@ td small {
   min-width: 0;
 }
 .realized-total {
-  font-size: 30px;
+  font-size: clamp(32px, 3vw, 40px);
+  letter-spacing: -1.2px;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
@@ -1759,14 +1760,40 @@ td small {
 }
 .realized-table {
   table-layout: fixed;
-  white-space: normal;
+  width: 100%;
+  white-space: nowrap;
 }
+.realized-table th:not(:first-child), .realized-table td:not(:first-child) {
+  width: 120px;
+  text-align: right;
+  padding-left: 20px;
+}
+.realized-table th:nth-child(4) {
+  width: 150px;
+}
+.realized-row-chip {
+  padding: 1px 3px;
+  font-size: 9px;
+  line-height: 1.3;
+}
+.realized-symbol small {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.realized-ticker {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.realized-row-chip { flex-shrink: 0; }
 .realized-table th {
   padding: 6px 8px;
   font-weight: 500;
 }
 .realized-table th:first-child {
-  width: 40%;
+  width: auto;
 }
 .realized-table td {
   overflow-wrap: anywhere;
@@ -1792,10 +1819,7 @@ td small {
   .realized-mobile-quantity {
     display: inline;
   }
-  .realized-heading .realized-note {
-    flex-basis: 100%;
-    font-size: 11px;
-  }
+
   .realized-overview {
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
@@ -1820,6 +1844,7 @@ td small {
   .realized-table tr:last-child {
     border-bottom: 0;
   }
+  .realized-table td:not(:first-child) { width: auto; padding-left: 0; }
   .realized-table td {
     padding: 0;
     border: 0;
@@ -1829,10 +1854,11 @@ td small {
     grid-column: 1;
     grid-row: 1;
   }
-  .realized-table .realized-date {
+  .realized-table td.realized-date {
     grid-column: 1;
     grid-row: 2;
     text-align: left;
+    padding-left: 28px;
     color: var(--muted);
     font-size: 10px;
   }

@@ -10,7 +10,11 @@ import {
 	YAxis,
 } from "recharts";
 import { formatPercent } from "../lib/format";
-import type { RealizedData, RealizedPeriod } from "../lib/types";
+import type {
+	MaskedRealizedData,
+	RealizedData,
+	RealizedPeriod,
+} from "../lib/types";
 import { usePollingJson } from "../lib/usePollingJson";
 import { formatAmount } from "./Amount";
 import { useMask } from "./MaskProvider";
@@ -25,9 +29,12 @@ const tone = (value: number) =>
 	value > 0 ? "profit" : value < 0 ? "loss" : "neutral";
 
 export function RealizedPanel() {
-	const data = usePollingJson<RealizedData | null>(
-		"/api/realized",
-		30 * 60_000,
+	const { masked } = useMask();
+	const data = usePollingJson<RealizedData | MaskedRealizedData | null>(
+		masked ? "/api/realized?masked=1" : "/api/realized",
+		5 * 60_000,
+		undefined,
+		{ clearOnError: true },
 	);
 	const [period, setPeriod] = useState<RealizedPeriod>("day");
 	const [expanded, setExpanded] = useState(false);
@@ -35,21 +42,22 @@ export function RealizedPanel() {
 		if (next !== period) setExpanded(false);
 		setPeriod(next);
 	};
-	const { masked } = useMask();
-	if (!data) return null;
+	if (!data || (!masked && data.masked)) return null;
 	const total = data.totals[period];
-	const rows = [...data.bySymbol[period]].sort(
-		(a, b) => Math.abs(b.realizedKrw) - Math.abs(a.realizedKrw),
+	const rows = [...data.bySymbol[period]].sort((a, b) =>
+		masked
+			? Math.abs(b.rate) - Math.abs(a.rate)
+			: Math.abs(b.realizedKrw ?? 0) - Math.abs(a.realizedKrw ?? 0),
 	);
 	// Only rates enter chart payloads when masked, including tooltip/accessibility data.
 	const chart = data.buckets[period].map((bucket, i, buckets) => ({
 		label: bucket.label,
-		value: masked ? bucket.rate : bucket.realizedKrw,
+		value: masked ? bucket.rate : (bucket.realizedKrw ?? 0),
 		estimated: bucket.estimated,
 		current: i === buckets.length - 1,
 	}));
-	const amount = (value: number, currency: "KRW" | "USD" = "KRW") =>
-		formatAmount(value, { masked, signed: true, currency });
+	const amount = (value: number | null, currency: "KRW" | "USD" = "KRW") =>
+		formatAmount(value ?? 0, { masked, signed: true, currency });
 	const chartFormat = (value: number) =>
 		masked ? formatPercent(value, true) : amount(value);
 	return (
@@ -60,7 +68,9 @@ export function RealizedPanel() {
 			<div className="panel-heading realized-heading">
 				<div>
 					<p className="eyebrow">REALIZED</p>
-					<h2 id="realized-heading">실현 손익</h2>
+					<h2 id="realized-heading" title="결제일 기준 · 한국 시간">
+						실현 손익
+					</h2>
 				</div>
 				<div className="segmented" role="tablist" aria-label="실현 손익 기간">
 					{periods.map(([key, label], index) => (
@@ -100,7 +110,6 @@ export function RealizedPanel() {
 						</button>
 					))}
 				</div>
-				<span className="subtle realized-note">결제일 기준 · 한국 시간</span>
 			</div>
 			<div
 				id="realized-content"
@@ -110,7 +119,7 @@ export function RealizedPanel() {
 				<div className="realized-overview">
 					<div className="realized-summary">
 						<strong
-							className={`realized-total ${masked ? "neutral" : tone(total.realizedKrw)}`}
+							className={`realized-total ${masked ? "neutral" : tone(total.realizedKrw ?? 0)}`}
 						>
 							{amount(total.realizedKrw)}
 						</strong>
@@ -118,14 +127,16 @@ export function RealizedPanel() {
 							<strong className={tone(total.rate)}>
 								{formatPercent(total.rate, true)}
 							</strong>
-							<span className="subtle">매도 {total.sellCount}건</span>
+							<span className="subtle">
+								매도 {total.sellCount}건 · 결제일 기준
+							</span>
 						</div>
 						<div className="realized-meta subtle">
-							<span>KRW {amount(total.byCcy.KRW)}</span>
-							<span>USD {amount(total.byCcy.USD, "USD")}</span>
+							<span>KRW {amount(total.byCcy?.KRW ?? null)}</span>
+							<span>USD {amount(total.byCcy?.USD ?? null, "USD")}</span>
 						</div>
 						<div className="realized-meta">
-							{total.pendingKrw !== 0 && (
+							{total.pending && (
 								<span className="realized-chip">
 									결제 대기 {amount(total.pendingKrw)}
 								</span>
@@ -211,7 +222,7 @@ export function RealizedPanel() {
 						</thead>
 						<tbody>
 							{(expanded ? rows : rows.slice(0, 5)).map((row) => (
-								<tr key={row.symbol}>
+								<tr key={`${row.market}:${row.symbol}`}>
 									<td className="realized-symbol">
 										<span
 											className={`market-icon ${row.market === "US" ? "us" : ""}`}
@@ -221,17 +232,31 @@ export function RealizedPanel() {
 										<div>
 											<strong>{row.name}</strong>
 											<small>
-												{row.symbol}
+												<span className="realized-ticker" title={row.symbol}>
+													{row.symbol}
+												</span>
 												{row.pending && (
 													<>
 														{" "}
-														· <span className="realized-chip">결제 대기</span>
+														<span
+															className="realized-chip realized-row-chip"
+															title="결제 대기"
+														>
+															대기
+														</span>
 													</>
 												)}
-												{row.fxEstimated && (
+												{(row.estimated || row.fxEstimated) && (
 													<>
 														{" "}
-														· <span className="realized-chip">추정</span>
+														<span
+															className="realized-chip realized-row-chip"
+															title={
+																row.fxEstimated ? "환율 추정" : "원가 추정"
+															}
+														>
+															추정
+														</span>
 													</>
 												)}
 											</small>
@@ -242,14 +267,21 @@ export function RealizedPanel() {
 										{row.sellCount > 1 && ` · ${row.sellCount}회`}
 										<span className="realized-mobile-quantity">
 											{" "}
-											· {formatAmount(row.quantity, { masked, quantity: true })}
+											·{" "}
+											{formatAmount(row.quantity ?? 0, {
+												masked,
+												quantity: true,
+											})}
 										</span>
 									</td>
 									<td className="realized-quantity">
-										{formatAmount(row.quantity, { masked, quantity: true })}
+										{formatAmount(row.quantity ?? 0, {
+											masked,
+											quantity: true,
+										})}
 									</td>
 									<td
-										className={`realized-profit ${masked ? "neutral" : tone(row.realizedKrw)}`}
+										className={`realized-profit ${masked ? "neutral" : tone(row.realizedKrw ?? 0)}`}
 									>
 										{amount(row.realized, row.currency)}
 										{row.currency === "USD" && (

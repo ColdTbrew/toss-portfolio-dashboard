@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 
-export function usePollingJson<T>(path: string, interval: number, initial?: T) {
+export function usePollingJson<T>(
+	path: string,
+	interval: number,
+	initial?: T,
+	options: { clearOnError?: boolean } = {},
+) {
+	const clearOnError = options.clearOnError ?? false;
 	const [data, setData] = useState(initial);
 	const hasInitial = initial !== undefined;
 	useEffect(() => {
@@ -14,11 +20,15 @@ export function usePollingJson<T>(path: string, interval: number, initial?: T) {
 					method: "GET",
 					signal: abort.signal,
 				});
-				if (!response.ok) return;
+				if (!response.ok) {
+					if (clearOnError && !abort.signal.aborted) setData(initial);
+					return;
+				}
 				const next = (await response.json()) as T;
 				if (!abort.signal.aborted) setData(next);
 			} catch {
-				// Keep the last result during a temporary connection failure.
+				// Most panels retain their last result during a temporary failure.
+				if (clearOnError && !abort.signal.aborted) setData(initial);
 			} finally {
 				pending = false;
 			}
@@ -29,6 +39,6 @@ export function usePollingJson<T>(path: string, interval: number, initial?: T) {
 			abort.abort();
 			clearInterval(timer);
 		};
-	}, [path, interval, hasInitial]);
+	}, [path, interval, hasInitial, clearOnError, initial]);
 	return data;
 }

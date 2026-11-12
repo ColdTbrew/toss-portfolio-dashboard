@@ -6,5 +6,6 @@ export const ALLOWED_ENDPOINTS = {
 	holdings: "/api/v1/holdings",
 	buyingPower: "/api/v1/buying-power",
 	exchangeRate: "/api/v1/exchange-rate",
+	transactions: "/api/v1/transactions",
 	candles: "/api/v1/candles",
 } as const;

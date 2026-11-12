@@ -7,6 +7,7 @@ import { RealizedPanel } from "../src/components/RealizedPanel";
 import { formatKrw, formatMoney, formatPercent } from "../src/lib/format";
 import { GET } from "../src/routes/api/realized";
 import { createMockRealized } from "../src/server/mock";
+import { maskRealized } from "../src/server/realized";
 
 // Inspect exactly what reaches Recharts, even without browser layout in jsdom.
 vi.mock("recharts", () => {
@@ -83,7 +84,11 @@ async function mount() {
 it("renders day totals, pending/estimated chips, switches month rows and masks all periods", async () => {
 	vi.stubGlobal(
 		"fetch",
-		vi.fn(async () => Response.json(data)),
+		vi.fn(async (url) =>
+			Response.json(
+				String(url).includes("masked=1") ? maskRealized(data) : data,
+			),
+		),
 	);
 	await mount();
 	expect(
@@ -117,6 +122,10 @@ it("renders day totals, pending/estimated chips, switches month rows and masks a
 	await act(() =>
 		container.querySelector<HTMLButtonElement>("button")?.click(),
 	);
+	expect(fetch).toHaveBeenLastCalledWith(
+		"/api/realized?masked=1",
+		expect.objectContaining({ method: "GET" }),
+	);
 	for (const [index, period] of (
 		["day", "week", "month", "year"] as const
 	).entries()) {
@@ -138,11 +147,25 @@ it("renders day totals, pending/estimated chips, switches month rows and masks a
 			data.buckets[period].map((row) => row.rate),
 		);
 	}
+	await act(() =>
+		container.querySelector<HTMLButtonElement>("button")?.click(),
+	);
+	expect(fetch).toHaveBeenLastCalledWith(
+		"/api/realized",
+		expect.objectContaining({ method: "GET" }),
+	);
+	expect(container.querySelector(".realized-total")?.textContent).toBe(
+		formatKrw(data.totals.year.realizedKrw, true),
+	);
 });
 it("collapses to the five largest symbols, expands, and resets on click and keyboard period changes", async () => {
 	vi.stubGlobal(
 		"fetch",
-		vi.fn(async () => Response.json(data)),
+		vi.fn(async (url) =>
+			Response.json(
+				String(url).includes("masked=1") ? maskRealized(data) : data,
+			),
+		),
 	);
 	await mount();
 	const tabs = [
@@ -199,7 +222,11 @@ it("collapses to the five largest symbols, expands, and resets on click and keyb
 it("uses opacity for the current bucket and gives nonzero bars a visible minimum height", async () => {
 	vi.stubGlobal(
 		"fetch",
-		vi.fn(async () => Response.json(data)),
+		vi.fn(async (url) =>
+			Response.json(
+				String(url).includes("masked=1") ? maskRealized(data) : data,
+			),
+		),
 	);
 	await mount();
 	const cells = [...container.querySelectorAll("[data-cell-opacity]")];
@@ -218,7 +245,7 @@ it("uses opacity for the current bucket and gives nonzero bars a visible minimum
 		container.querySelector("[data-zero-bar]")?.getAttribute("data-zero-bar"),
 	).toBe("0");
 });
-it("polls only the realized route every 30 minutes and renders nothing for unavailable data", async () => {
+it("polls only the realized route every five minutes and renders nothing for unavailable data", async () => {
 	vi.useFakeTimers();
 	const fetcher = vi.fn<typeof fetch>(
 		async () => new Response(null, { status: 404 }),
@@ -226,14 +253,17 @@ it("polls only the realized route every 30 minutes and renders nothing for unava
 	vi.stubGlobal("fetch", fetcher);
 	await mount();
 	expect(container.querySelector("section")).toBeNull();
-	expect(fetcher).toHaveBeenCalledExactlyOnceWith(
+	expect(fetcher).toHaveBeenLastCalledWith(
 		"/api/realized",
 		expect.objectContaining({ method: "GET" }),
 	);
 	fetcher.mockImplementation(async () => Response.json(data));
-	await act(() => vi.advanceTimersByTimeAsync(1_800_000));
-	expect(fetcher).toHaveBeenCalledTimes(2);
+	await act(() => vi.advanceTimersByTimeAsync(300_000));
+	expect(fetcher).toHaveBeenCalledTimes(3);
 	expect(container.querySelector("section")).not.toBeNull();
+	fetcher.mockImplementation(async () => new Response(null, { status: 503 }));
+	await act(() => vi.advanceTimersByTimeAsync(300_000));
+	expect(container.querySelector("section")).toBeNull();
 	await act(() => root?.unmount());
 	root = undefined;
 	expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
@@ -269,17 +299,20 @@ it("keeps deterministic totals and current buckets consistent across KST and yea
 				rows.reduce((sum, row) => sum + row.sellCount, 0),
 			);
 			expect(new Set(rows.map((row) => row.symbol)).size).toBe(rows.length);
-			expect(total.costKrw).toBe(
-				rows.reduce((sum, row) => sum + row.costKrw, 0),
-			);
+			expect(total).not.toHaveProperty("costKrw");
 			for (const row of rows) {
-				expect(row.rate).toBe(row.realizedKrw / row.costKrw);
+				expect(row).not.toHaveProperty("costKrw");
+				expect(Number.isFinite(row.rate)).toBe(true);
 				if (row.fxEstimated) expect(row.fxRate).toBeNull();
 				expect(Math.abs(row.realized)).toBeLessThanOrEqual(
 					row.sellCount * (row.currency === "USD" ? 300 : 300_000),
 				);
 			}
-			expect(total.rate).toBe(total.realizedKrw / total.costKrw);
+			expect(total.rate).toBeCloseTo(
+				total.realizedKrw /
+					rows.reduce((sum, row) => sum + row.realizedKrw / row.rate, 0),
+				10,
+			);
 			expect(total.pendingKrw).toBe(
 				rows.reduce((sum, row) => sum + row.pendingKrw, 0),
 			);
@@ -335,7 +368,7 @@ it("provides plausible native amounts, dense recent sells, monthly history and r
 		quantity: 20,
 		realized: 145100,
 		realizedKrw: 145100,
-		costKrw: 480000,
+		rate: 145100 / 480000,
 		sellCount: 2,
 		lastSellDate: "2026-11-10",
 		pending: false,
@@ -371,7 +404,7 @@ it("provides plausible native amounts, dense recent sells, monthly history and r
 			.reduce((sum, row) => sum + row.realizedKrw, 0),
 	).toBe(sample.totals.year.realizedKrw);
 });
-it("serves fixtures only in mock mode and never fetches in real or proxy mode", async () => {
+it("serves mock fixtures and removes amounts when the request is masked", async () => {
 	const fetcher = vi.fn(() => {
 		throw new Error("Network forbidden");
 	});
@@ -379,9 +412,12 @@ it("serves fixtures only in mock mode and never fetches in real or proxy mode", 
 	vi.stubEnv("UPSTREAM_URL", undefined);
 	vi.stubEnv("TOSS_MOCK", "1");
 	expect(await (await GET()).json()).toMatchObject({ basis: "settlement" });
-	vi.stubEnv("TOSS_MOCK", "0");
-	expect((await GET()).status).toBe(404);
-	vi.stubEnv("UPSTREAM_URL", "https://fake-upstream.invalid");
-	expect((await GET()).status).toBe(404);
+	const response = await GET({
+		request: new Request("https://fake.invalid/api/realized?masked=1"),
+	});
+	expect((await response.json()).totals.day).toMatchObject({
+		realizedKrw: null,
+		byCcy: null,
+	});
 	expect(fetcher).not.toHaveBeenCalled();
 });

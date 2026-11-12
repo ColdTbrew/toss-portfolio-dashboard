@@ -4,12 +4,14 @@
 
 ## 0. 불변 규칙 (코드·리뷰·테스트로 강제)
 
-1. **조회 전용.** 코드에 존재해도 되는 토스 엔드포인트는 아래 5개뿐이다. 주문·정정·취소·조건주문·매도가능수량·수수료 등 다른 경로는 문자열로도 넣지 않는다.
+1. **조회 전용.** 코드에 존재해도 되는 토스 엔드포인트는 아래 7개뿐이다. 주문·정정·취소·조건주문·매도가능수량·수수료 등 다른 경로는 문자열로도 넣지 않는다.
    - `POST /oauth2/token`
    - `GET /api/v1/accounts` (accountSeq 캐시가 없을 때 1회만)
    - `GET /api/v1/holdings`
    - `GET /api/v1/buying-power?currency=KRW|USD`
    - `GET /api/v1/exchange-rate?baseCurrency=USD&quoteCurrency=KRW`
+   - `GET /api/v1/candles`
+   - `GET /api/v1/transactions`
    - WS `wss://openapi-ws.tossinvest.com/ws/v1` — `trade:kr`, `trade:us` 구독만 (orderbook·personal:order 미사용)
 2. **시크릿은 레포에 없다.** client id/secret, 토큰, 계좌번호, 장부(`portfolio.jsonl`), DB 는 env 또는 파일 경로로만 받는다. `.gitignore` + gitleaks(CI·pre-commit) 로 막는다.
 3. **로그에 시크릿이 없다.** 헤더는 절대 로그하지 않는다. 에러는 `status + code + message(200자)` 로만 요약하고 `redact()` 를 통과시킨다.
@@ -31,6 +33,7 @@
 | `TOSS_ENV_PATH` | `~/invest/.toss.env` | `TOSS_CLIENT_ID=…`, `TOSS_CLIENT_SECRET=…` (KEY=VALUE 줄) |
 | `TOSS_TOKEN_PATH` | `~/invest/.token.json` | toss.py 와 공유하는 토큰 캐시 |
 | `TOSS_ACCOUNT_PATH` | `~/invest/account.json` | accountSeq 캐시 |
+| `TRANSACTIONS_CACHE_PATH` | 장부 옆 `transactions.jsonl` | 결제 완료 거래 캐시 |
 | `PORTFOLIO_LEDGER_PATH` | `~/invest/portfolio.jsonl` | 일별 스냅샷 장부 |
 | `TOSS_MOCK` | unset | `1` 이면 네트워크 0, 픽스처 + 가짜 틱 (개발·스크린샷·CI) |
 | `SNAPSHOT_ENABLED` | `1` (mock 에선 무시) | 일별 스냅샷 자동 기록 |
@@ -53,7 +56,7 @@ src/
     fileLock.ts               # withFileLock(lockPath, fn, {timeoutMs, staleMs}) — O_EXCL lockfile
     atomicWrite.ts            # writeJsonAtomic(path, obj) — tmp + fsync + rename, mode 600
     tokenStore.ts             # getToken({force?, rejectedToken?}) — 공유 캐시/락/발급
-    tossClient.ts             # 허용된 5개 호출만 있는 클라이언트 (fetch)
+    tossClient.ts             # 허용된 7개 호출만 있는 클라이언트 (fetch)
     endpoints.ts              # ALLOWED 경로 상수 (테스트가 이 집합과 소스 전체를 대조)
     account.ts                # getAccountSeq() — account.json 우선, 없으면 /accounts 1회 후 같은 포맷으로 저장
     portfolioService.ts       # 폴링 루프 + 최신 PortfolioState 보관 + 구독자 notify (singleton)
@@ -146,9 +149,9 @@ API 401(`invalid-token`/`expired-token`/`token-revoked`) 처리: `getToken({ rej
 export const TOSS_REST_BASE = 'https://openapi.tossinvest.com'
 export const TOSS_WS_URL = 'wss://openapi-ws.tossinvest.com/ws/v1'
 export const ALLOWED_ENDPOINTS = { token: '/oauth2/token', accounts: '/api/v1/accounts', holdings: '/api/v1/holdings',
-  buyingPower: '/api/v1/buying-power', exchangeRate: '/api/v1/exchange-rate' } as const
+  buyingPower: '/api/v1/buying-power', exchangeRate: '/api/v1/exchange-rate', candles: '/api/v1/candles', transactions: '/api/v1/transactions' } as const
 ```
-공개 함수는 `getHoldings(seq)`, `getBuyingPower(seq, 'KRW'|'USD')`, `getExchangeRate()`, `listAccounts()` 뿐. 범용 `request(path)` 를 export 하지 않는다. 내부 `get()` 도 path 가 ALLOWED 집합에 없으면 throw.
+공개 함수는 `getHoldings(seq)`, `getBuyingPower(seq, 'KRW'|'USD')`, `getExchangeRate()`, `listAccounts()`, `getCandles()`, `getIntraday()`, `getTransactions(seq, {from?, to?, cursor?, limit?})` 뿐. 범용 `request(path)` 를 export 하지 않는다. 내부 `get()` 도 path 가 ALLOWED 집합에 없으면 throw.
 - 헤더: `Authorization: Bearer`, `Accept: application/json`, 계좌 API 는 `X-Tossinvest-Account: <accountSeq>`.
 - 응답 envelope `{ result }` 에서 `result` 반환.
 - 429: `Retry-After`(없으면 1.5s) 만큼 대기 후 1회 재시도. timeout 15s (AbortController).
@@ -248,7 +251,7 @@ SSE (`/api/stream`): `Content-Type: text/event-stream`, `Cache-Control: no-cache
 | 테스트 | 검증 |
 |---|---|
 | `tokenStore.test.ts` | 유효 캐시 재사용(발급 0회) / 만료 시 1회 발급 + 포맷·mode 600 / 동시 10개 호출 → 발급 1회(single-flight) / 두 "프로세스"(락 경쟁) → 발급 1회 / 락 안 재확인(다른 쪽이 먼저 써 둔 토큰 사용) / stale 락 회수 / rejectedToken 처리 |
-| `readOnly.test.ts` | `src/**` 전체를 grep: `/api/v1/...` 문자열 집합 ⊆ 허용 4개, `orders`·`conditional`·`sellable`·`commission` 경로 없음, `method: 'POST'` 는 tokenStore 의 `/oauth2/token` 뿐, WS 선언 type 은 `trade:` 만 |
+| `readOnly.test.ts` | `src/**` 전체를 grep: `/api/v1/...` 문자열 집합 ⊆ 허용 6개, `orders`·`conditional`·`sellable`·`commission` 경로 없음, `method: 'POST'` 는 tokenStore 의 `/oauth2/token` 뿐, WS 선언 type 은 `trade:` 만 |
 | `ledger.test.ts` | 실제 장부와 같은 스키마의 픽스처(가짜 값) 파싱 / 깨진 줄 skip / 같은 날 최신 줄 선택 / append 가 기존 바이트를 그대로 두고 1줄 추가 / 같은 날 이미 있으면 skip / summarize.py 와 같은 문자열 반올림 |
 | `redact.test.ts` | Bearer·JWT·client_secret·계좌번호 패턴 마스킹, 에러 요약에 헤더 없음 |
 | `compute.test.ts` | 틱 반영 후 평가금액·손익·일간손익·총자산·비중 재계산, 환율 적용 |
@@ -284,3 +287,9 @@ SSE (`/api/stream`): `Content-Type: text/event-stream`, `Cache-Control: no-cache
 |---|---|
 | `mask.test.tsx` | 픽스처 상태로 대시보드 주요 컴포넌트(요약 카드, 보유 테이블, 차트 래퍼)를 `react-dom/server` `renderToStaticMarkup` 로 masked 렌더 → 픽스처의 모든 절대 금액(총자산, 현금, 평가·손익 금액, 수량, 평균가)의 포맷 문자열(콤마 포함/미포함, 원·$ 형식)이 HTML 에 **하나도 없음**, 수익률 % 문자열은 있음. unmasked 렌더에는 금액이 있음(테스트가 실제로 검출 가능한지 확인) |
 | `shareCard.test.ts` | 기본 모델 JSON 직렬화에 금액·수량 값 없음, `amounts` 키 없음, 계좌 관련 키 없음 / includeAmounts=true 일 때만 금액 존재 / 상위 종목은 수익률 내림차순 5개 / 가짜 Canvas 컨텍스트로 `drawShareCard` 호출 시 `fillText` 인자에 금액 문자열 없음(기본 모드) |
+
+## 17. 실현 손익
+
+`GET /api/realized`는 계좌 헤더가 필요한 `GET /api/v1/transactions`를 사용하며 STOCK 매수·매도·이관을 시장·심볼별 이동평균 원가(netAmount, 비용 포함)로 계산합니다. 결제일 KST로 집계하고 주는 월요일 시작이며, 매도일 표시는 결제 처리시각(transactionTime) KST 날짜입니다(체결일과 다를 수 있음). USD는 매도 환율, 미결제는 현재 midRate로 환산해 오늘의 결제 대기로 표시합니다. 이관·누락 원가는 보유종목 평균가로 추정하고 원가 불명 매도는 제외하며 추정을 표시합니다. 취소 매수는 수량·금액을 되돌리고 취소 매도는 최근 매도의 단위 원가로 되돌리는 단순 근사입니다. number 계산 후 응답 금액을 소수 8자리에서 반올림하고 원가는 응답에 넣지 않습니다.
+
+`TRANSACTIONS_CACHE_PATH`는 기본 `dirname(ledgerPath)/transactions.jsonl`이며 gitignore 대상입니다. 최초 from/to 없이 전체 조회 후 lazy single-flight로 최대 5분마다 오늘 KST − 10일부터 종료일 없이 조회해 해당 구간을 교체합니다. 고정 거래 유형 필터로 페이지당 100건·최소 250ms 간격·최대 1,000페이지이며 필터 변경 시 cursor를 초기화합니다. 결제 완료 행만 파일 락·0600 원자적 교체로 저장하고 미결제는 최신 응답의 메모리에만 둡니다. 깨진 줄은 redacted 경고 후 건너뛰고 실패 시 마지막 정상 캐시를 유지하며 초기 실패는 redacted 503입니다. Proxy는 같은 쿼리를 전달하고 오류/미지원 시 null로 패널을 숨깁니다. private max-age=30이며 `?masked=1`은 금액·수량을 null로 반환하고 수익률·건수·상태를 유지합니다. 패널은 5분 폴링과 마스크 토글 시 다시 조회하며 불가 응답 시 숨깁니다.

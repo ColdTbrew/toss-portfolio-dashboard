@@ -369,6 +369,7 @@ export function createMockRealized(now = Date.now()): RealizedData {
 			rate: realizedKrw / costKrw,
 			fxRate,
 			fxEstimated: pending,
+			estimated: pending,
 			pending,
 			sellDate: dateKey(settlement - (pending ? 0 : 2) * dayMs),
 			settlement,
@@ -380,7 +381,7 @@ export function createMockRealized(now = Date.now()): RealizedData {
 		const costKrw = rows.reduce((sum, row) => sum + row.costKrw, 0);
 		return {
 			realizedKrw,
-			costKrw,
+			pending: rows.some((row) => row.pending),
 			rate: costKrw ? realizedKrw / costKrw : 0,
 			sellCount: rows.length,
 			pendingKrw: rows.reduce(
@@ -411,7 +412,7 @@ export function createMockRealized(now = Date.now()): RealizedData {
 			(row) => startOf(row.settlement, period) === current,
 		);
 		data.totals[period] = summarize(rows);
-		const grouped = new Map<string, RealizedSymbol>();
+		const grouped = new Map<string, RealizedSymbol & { costKrw: number }>();
 		for (const row of rows) {
 			const existing = grouped.get(row.symbol);
 			if (!existing) {
@@ -435,10 +436,13 @@ export function createMockRealized(now = Date.now()): RealizedData {
 			existing.pending ||= row.pending;
 			existing.pendingKrw += row.pending ? row.realizedKrw : 0;
 			existing.fxEstimated ||= row.fxEstimated;
+			existing.estimated ||= row.estimated;
 			if (existing.fxEstimated || existing.fxRate !== row.fxRate)
 				existing.fxRate = null;
 		}
-		data.bySymbol[period] = [...grouped.values()];
+		data.bySymbol[period] = [...grouped.values()].map(
+			({ costKrw: _cost, ...row }) => row,
+		);
 		const count =
 			period === "day"
 				? 30

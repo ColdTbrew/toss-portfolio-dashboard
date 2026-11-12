@@ -4,11 +4,14 @@ import type {
 	DatedClose,
 	HoldingRow,
 	IntradayData,
+	MaskedRealizedData,
 	PortfolioState,
+	RealizedData,
 	Sparklines,
 } from "../lib/types";
 import { type Config, type Now, readConfig } from "./config";
 import { finiteNumber, record } from "./parse";
+import { realizedPayload } from "./realized";
 
 type LogoHolding = Pick<HoldingRow, "symbol" | "name">;
 const noStore = { "Cache-Control": "no-store" };
@@ -56,6 +59,41 @@ export function createProxy(options: {
 	}
 
 	return {
+		async getRealized(
+			masked: boolean,
+		): Promise<RealizedData | MaskedRealizedData | null> {
+			try {
+				const { data } = await readJson(
+					`/api/realized${masked ? "?masked=1" : ""}`,
+				);
+				const body = record(data);
+				if (
+					body.basis !== "settlement" ||
+					!body.totals ||
+					!body.buckets ||
+					!body.bySymbol
+				)
+					return null;
+				if (!masked && body.masked) return null;
+				const validNumber = (value: unknown) =>
+					typeof value === "number" && Number.isFinite(value);
+				for (const period of ["day", "week", "month", "year"]) {
+					const total = record(record(body.totals)[period]);
+					if (
+						!validNumber(total.rate) ||
+						!validNumber(total.sellCount) ||
+						!Array.isArray(record(body.buckets)[period]) ||
+						!Array.isArray(record(body.bySymbol)[period])
+					)
+						return null;
+				}
+				// Whitelist public fields and strip amounts if an older upstream
+				// ignores the privacy query. Internal basis never crosses this API.
+				return realizedPayload(data as RealizedData, masked);
+			} catch {
+				return null;
+			}
+		},
 		async getTargets(): Promise<TargetsData> {
 			try {
 				const { data } = await readJson("/api/targets");
