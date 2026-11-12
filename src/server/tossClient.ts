@@ -11,6 +11,12 @@ import { ALLOWED_ENDPOINTS, TOSS_REST_BASE } from "./endpoints";
 import { exchangeDate, finiteNumber, record } from "./parse";
 import { redact, summarizeHttpError } from "./redact";
 import { getTokenStore, type TokenStore } from "./tokenStore";
+import {
+	parseTransactionPage,
+	type TransactionPage,
+	type TransactionQuery,
+	transactionQuery,
+} from "./transactions";
 
 export interface AccountRecord {
 	accountSeq: number;
@@ -18,6 +24,10 @@ export interface AccountRecord {
 	accountNoMasked: string;
 }
 export interface TossClient {
+	getTransactions(
+		seq: number,
+		options: TransactionQuery,
+	): Promise<TransactionPage>;
 	listAccounts(): Promise<AccountRecord[]>;
 	getHoldings(seq: number): Promise<HoldingsOverview>;
 	getBuyingPower(seq: number, currency: Currency): Promise<BuyingPower>;
@@ -232,6 +242,19 @@ export function createTossClient(options: {
 		}
 	}
 	return {
+		async getTransactions(seq, options) {
+			return parseTransactionPage(
+				await get(
+					ALLOWED_ENDPOINTS.transactions,
+					{
+						transactionTypes:
+							"BUY,SELL,SECURITIES_TRANSFER_IN,SECURITIES_TRANSFER_OUT",
+						...transactionQuery(options),
+					},
+					seq,
+				),
+			);
+		},
 		async listAccounts() {
 			const accounts = await get<
 				{ accountSeq: number; accountType: string; accountNo?: string }[]

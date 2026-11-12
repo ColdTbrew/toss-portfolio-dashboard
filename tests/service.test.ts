@@ -46,6 +46,11 @@ describe("portfolio service", () => {
 		const { holdings, krw, usd, fx } = rawFixture();
 		if (!holdings || !krw || !usd || !fx) throw new Error();
 		const client = {
+			getTransactions: vi.fn(async () => ({
+				transactions: [],
+				nextCursor: null,
+				hasNext: false,
+			})),
 			getCandles: vi.fn(async () => []),
 			getIntraday: vi.fn(async () => []),
 			listAccounts: vi.fn(async () => []),
@@ -114,6 +119,11 @@ describe("portfolio service", () => {
 			return Promise.resolve(value);
 		};
 		const client = {
+			getTransactions: vi.fn(async () => ({
+				transactions: [],
+				nextCursor: null,
+				hasNext: false,
+			})),
 			getCandles: vi.fn(async () => []),
 			getIntraday: vi.fn(async () => []),
 			listAccounts: vi.fn(async () => []),
@@ -193,6 +203,11 @@ describe("portfolio service", () => {
 		vi.setSystemTime(NOW);
 		const raw = rawFixture();
 		const client = {
+			getTransactions: vi.fn(async () => ({
+				transactions: [],
+				nextCursor: null,
+				hasNext: false,
+			})),
 			getCandles: vi.fn(async () => []),
 			getIntraday: vi.fn(async () => []),
 			listAccounts: vi.fn(async () => []),

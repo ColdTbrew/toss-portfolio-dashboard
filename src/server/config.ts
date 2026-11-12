@@ -7,6 +7,7 @@ export interface Config {
 	tokenPath: string;
 	accountPath: string;
 	ledgerPath: string;
+	transactionsPath: string;
 	targetsPath: string;
 	mock: boolean;
 	proxy: { upstream: URL } | null;
@@ -68,6 +69,10 @@ export function readConfig(
 		tokenPath: path(env.TOSS_TOKEN_PATH ?? "~/invest/.token.json"),
 		accountPath: path(env.TOSS_ACCOUNT_PATH ?? "~/invest/account.json"),
 		ledgerPath,
+		transactionsPath: path(
+			env.TRANSACTIONS_CACHE_PATH ??
+				join(dirname(ledgerPath), "transactions.jsonl"),
+		),
 		targetsPath: path(
 			env.TARGET_WEIGHTS_PATH ?? join(dirname(ledgerPath), "targets.json"),
 		),

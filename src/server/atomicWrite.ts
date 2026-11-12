@@ -5,11 +5,18 @@ export async function writeJsonAtomic(
 	path: string,
 	value: unknown,
 ): Promise<void> {
+	return writeTextAtomic(path, `${JSON.stringify(value)}\n`);
+}
+
+export async function writeTextAtomic(
+	path: string,
+	content: string,
+): Promise<void> {
 	const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
 	try {
 		const file = await open(temporary, "wx", 0o600);
 		try {
-			await file.writeFile(`${JSON.stringify(value)}\n`, "utf8");
+			await file.writeFile(content, "utf8");
 			await file.sync();
 		} finally {
 			await file.close();

@@ -149,3 +149,86 @@ export interface TrendPoint {
 	purchaseKrw: number;
 	returnRate: number;
 }
+
+export type RealizedPeriod = "day" | "week" | "month" | "year";
+
+export interface RealizedTotal {
+	pending: boolean;
+	realizedKrw: number;
+	rate: number;
+	sellCount: number;
+	pendingKrw: number;
+	/** Native currency P/L, before KRW conversion. */
+	byCcy: { KRW: number; USD: number };
+	estimated: boolean;
+}
+
+export interface RealizedBucket {
+	key: string;
+	label: string;
+	realizedKrw: number;
+	rate: number;
+	estimated: boolean;
+}
+
+export interface RealizedSymbol {
+	estimated: boolean;
+	symbol: string;
+	name: string;
+	market: "KR" | "US";
+	currency: "KRW" | "USD";
+	quantity: number;
+	/** Native currency P/L. */
+	realized: number;
+	realizedKrw: number;
+	rate: number;
+	/** Null for KRW, mixed FX rates, or estimated FX. */
+	fxRate: number | null;
+	fxEstimated: boolean;
+	pending: boolean;
+	lastSellDate: string;
+	sellCount: number;
+	/** Only the pending sells within this symbol group. */
+	pendingKrw: number;
+}
+
+export interface RealizedData {
+	masked?: false;
+	asOf: string;
+	/** KST settlement date; today's unsettled sells are included as pending. */
+	basis: "settlement";
+	totals: Record<RealizedPeriod, RealizedTotal>;
+	buckets: Record<RealizedPeriod, RealizedBucket[]>;
+	bySymbol: Record<RealizedPeriod, RealizedSymbol[]>;
+}
+
+export type MaskedRealizedData = Omit<
+	RealizedData,
+	"totals" | "buckets" | "bySymbol" | "masked"
+> & {
+	masked: true;
+	totals: Record<
+		RealizedPeriod,
+		Omit<RealizedTotal, "realizedKrw" | "pendingKrw" | "byCcy"> & {
+			realizedKrw: null;
+			pendingKrw: null;
+			byCcy: null;
+		}
+	>;
+	buckets: Record<
+		RealizedPeriod,
+		(Omit<RealizedBucket, "realizedKrw"> & { realizedKrw: null })[]
+	>;
+	bySymbol: Record<
+		RealizedPeriod,
+		(Omit<
+			RealizedSymbol,
+			"quantity" | "realized" | "realizedKrw" | "pendingKrw"
+		> & {
+			quantity: null;
+			realized: null;
+			realizedKrw: null;
+			pendingKrw: null;
+		})[]
+	>;
+};
